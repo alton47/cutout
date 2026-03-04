@@ -2,6 +2,10 @@
 
 > AI-powered background removal. Drop any image, get a pixel-perfect cutout in seconds.
 
+<img width="1512" height="982" alt="Screenshot 2026-03-04 at 19 21 31" src="https://github.com/user-attachments/assets/ae1c079f-f976-495c-9b6f-21275e7b66ac" />
+
+**[▶ Live Demo →](https://cutout-seven.vercel.app/)**
+
 Built with **Next.js 14 · TypeScript · Tailwind CSS · remove.bg API**
 
 ---
