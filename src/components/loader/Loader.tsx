@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 interface LoaderProps {
   thumbSrc: string;
 }

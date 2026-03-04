@@ -1,12 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  cn,
-  validateImageFile,
-  SAMPLE_IMAGES,
-  type SampleKey,
-} from "@/lib/utils";
+import { cn, SAMPLE_IMAGES, type SampleKey } from "@/lib/utils";
 
 interface DropZoneProps {
   onFile: (file: File) => void;
@@ -93,7 +88,7 @@ export function DropZone({ onFile, onUrl }: DropZoneProps) {
       <div
         className={cn(
           "relative rounded-[28px] text-center cursor-pointer overflow-hidden",
-          "transition-all duration-[280ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "transition-all duration-280ms ease-[cubic-bezier(0.4,0,0.2,1)]",
           "border-2 border-dashed",
           isDragOver ? "border-solid scale-[1.004]" : "hover:border-solid",
         )}
