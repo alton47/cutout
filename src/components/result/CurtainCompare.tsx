@@ -27,7 +27,7 @@ export function CurtainCompare({
 
   // Curtain sweep-in animation on mount
   useEffect(() => {
-    // Start from 100% (showing original), animate to 50%
+    // Start from 100% (showing original), animate to 50% or so..
     setPct(100);
     const t1 = setTimeout(() => setRevealed(true), 50);
     const t2 = setTimeout(() => setPct(50), 950);
