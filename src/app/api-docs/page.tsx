@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-// import { Navbar } from "@/components/layout/Navbar";
-// import { Footer } from "@/components/layout/Footer";
-// import { Toast } from "@/components/ui/Toast";
-// import { LiveBadge } from "@/components/ui/Badge";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { Toast } from "@/components/ui/Toast";
+import { LiveBadge } from "@/components/ui/Badge";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
 
