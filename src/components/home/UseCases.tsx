@@ -1,3 +1,5 @@
+"use client";
+
 const USE_CASES = [
   {
     emoji: "🧑‍💼",
@@ -59,7 +61,8 @@ export function UseCases() {
         className="text-[15px] font-light leading-relaxed mb-11 max-w-[380px]"
         style={{ color: "var(--tx2)" }}
       >
-        The AI detects what's foreground automatically — no settings needed.
+        The AI detects what&apos;s foreground automatically — no settings
+        needed.
       </p>
 
       {/* Grid */}
@@ -108,7 +111,10 @@ export function UseCases() {
       {/* Stats */}
       <div
         className="flex rounded-[20px] overflow-hidden mt-12 mb-2 max-sm:flex-col"
-        style={{ background: "var(--card)", border: "1.5px solid var(--line)" }}
+        style={{
+          backgroundColor: "var(--card)",
+          border: "1.5px solid var(--line)",
+        }}
       >
         {STATS.map((s, i) => (
           <div

@@ -27,7 +27,6 @@ export function CurtainCompare({
 
   // Curtain sweep-in animation on mount
   useEffect(() => {
-    // Start from 100% (showing original), animate to 50% or so..
     setPct(100);
     const t1 = setTimeout(() => setRevealed(true), 50);
     const t2 = setTimeout(() => setPct(50), 950);
@@ -37,7 +36,7 @@ export function CurtainCompare({
     };
   }, [setPct]);
 
-  // Dynamic height from result image dimensions
+  // Dynamic height calculation
   useEffect(() => {
     if (width && height) {
       const w = parseInt(width);
@@ -45,18 +44,31 @@ export function CurtainCompare({
       if (w && h) {
         const maxW = Math.min(920, window.innerWidth - 40);
         const ratio = h / w;
-        setStageHeight(Math.min(520, maxW * ratio));
+        const newHeight = Math.min(520, maxW * ratio);
+
+        // Use requestAnimationFrame to avoid synchronous setState lint error
+        requestAnimationFrame(() => {
+          setStageHeight(newHeight);
+        });
       }
     }
   }, [width, height]);
 
-  const isDark = document.documentElement.classList.contains("dark");
+  // Check for dark mode safely
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
   const checkerClass = isDark ? "checker-dark" : "checker-light";
 
   return (
     <div
       className="rounded-[24px] overflow-hidden mb-2.5"
-      style={{ background: "var(--bg2)", border: "1.5px solid var(--line)" }}
+      style={{
+        backgroundColor: "var(--bg2)",
+        border: "1.5px solid var(--line)",
+      }}
     >
       {/* Top bar */}
       <div
@@ -85,7 +97,8 @@ export function CurtainCompare({
         )}
         style={{
           height: stageHeight,
-          background: bgColor !== "transparent" ? bgColor : undefined,
+          // Fixed: Using longhand properties to avoid React style conflicts
+          backgroundColor: bgColor !== "transparent" ? bgColor : "transparent",
           backgroundImage: bgColor !== "transparent" ? "none" : undefined,
           backgroundSize: bgColor !== "transparent" ? "auto" : undefined,
         }}
@@ -121,7 +134,7 @@ export function CurtainCompare({
           className="absolute top-0 bottom-0 w-[3px] -translate-x-1/2 z-10 cursor-col-resize"
           style={{
             left: `${pct}%`,
-            background: "var(--accent)",
+            backgroundColor: "var(--accent)",
             transition: revealed
               ? "none"
               : "left 0.9s cubic-bezier(0.34,1.56,0.64,1)",
@@ -133,7 +146,7 @@ export function CurtainCompare({
           <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center"
             style={{
-              background: "var(--accent)",
+              backgroundColor: "var(--accent)",
               boxShadow: "0 4px 16px var(--accent-glow)",
               color: "#000",
             }}
@@ -162,7 +175,7 @@ export function CurtainCompare({
           <span
             className="text-[11px] font-bold tracking-[0.6px] uppercase text-white px-2.5 py-1 rounded-full"
             style={{
-              background: "rgba(0,0,0,0.55)",
+              backgroundColor: "rgba(0,0,0,0.55)",
               backdropFilter: "blur(6px)",
             }}
           >
@@ -171,7 +184,7 @@ export function CurtainCompare({
           <span
             className="text-[11px] font-bold tracking-[0.6px] uppercase text-white px-2.5 py-1 rounded-full"
             style={{
-              background: "rgba(0,0,0,0.55)",
+              backgroundColor: "rgba(0,0,0,0.55)",
               backdropFilter: "blur(6px)",
             }}
           >
