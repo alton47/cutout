@@ -23,7 +23,7 @@ export function useCurtain(initialPct = 50) {
     dragging.current = true;
   }, []);
 
-  // Stage click — jump to click position
+  // Stage click — jump to click positionn
   const onStageClick = useCallback(
     (e: React.MouseEvent) => {
       if (!dragging.current) {
