@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# cutout ✦
 
-## Getting Started
+> AI-powered background removal. Drop any image, get a pixel-perfect cutout in seconds.
 
-First, run the development server:
+Built with **Next.js 14 · TypeScript · Tailwind CSS · remove.bg API**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## File Structure
+
+```
+cutout/
+├── .env.local                          # API key (never committed)
+├── .env.example                        # Template for contributors
+├── .gitignore
+├── next.config.ts
+├── package.json
+├── postcss.config.mjs
+├── tailwind.config.ts
+├── tsconfig.json
+│
+└── src/
+    ├── app/
+    │   ├── layout.tsx                  # Root layout (fonts, metadata, ThemeScript)
+    │   ├── page.tsx                    # Home page — upload, loader, result
+    │   ├── globals.css                 # Tailwind directives + custom utilities
+    │   │
+    │   ├── api/
+    │   │   └── remove-bg/
+    │   │       └── route.ts            # Edge API route — proxies remove.bg, hides key
+    │   │
+    │   ├── pricing/
+    │   │   └── page.tsx                # Pricing page (Free / Pro / Enterprise)
+    │   │
+    │   └── api-docs/
+    │       └── page.tsx                # API docs (endpoints, params, code samples)
+    │
+    ├── components/
+    │   ├── layout/
+    │   │   ├── Navbar.tsx              # Top nav with theme toggle
+    │   │   ├── Footer.tsx              # Footer with links
+    │   │   └── ThemeScript.tsx         # Inline script — prevents theme flash (FOUC)
+    │   │
+    │   ├── ui/
+    │   │   ├── Toast.tsx               # Animated toast notification
+    │   │   └── Badge.tsx               # Live pulsing badge
+    │   │
+    │   ├── upload/
+    │   │   └── DropZone.tsx            # Drag-drop, click, paste, URL, sample chips
+    │   │
+    │   ├── loader/
+    │   │   └── Loader.tsx              # Floating orbs + triple rings + shimmer
+    │   │
+    │   ├── result/
+    │   │   ├── CurtainCompare.tsx      # Draggable before/after curtain reveal
+    │   │   ├── ActionsBar.tsx          # Format, BG color, copy, download
+    │   │   └── ResultView.tsx          # Combines curtain + actions, handles download
+    │   │   └── ErrorView.tsx           # Error state with retry
+    │   │
+    │   └── home/
+    │       └── UseCases.tsx            # 6 use-case cards + stats row
+    │
+    ├── hooks/
+    │   ├── useRemoveBg.ts              # Core state machine — upload → load → result
+    │   ├── useCurtain.ts               # Drag logic for before/after slider
+    │   ├── useTheme.ts                 # Dark/light toggle, persists to localStorage
+    │   └── useToast.ts                 # Toast message state
+    │
+    ├── lib/
+    │   ├── utils.ts                    # cn(), validateImageFile(), SAMPLE_IMAGES
+    │   ├── fonts.ts                    # next/font — Outfit + JetBrains Mono
+    │   └── pricing-data.ts             # PLANS, COMPARE_ROWS, FAQ_ITEMS
+    │
+    └── types/
+        └── index.ts                    # All shared TypeScript interfaces
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quick Start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1. Clone and install
+git clone https://github.com/you/cutout.git
+cd cutout
+npm install
 
-## Learn More
+# 2. Set env
+cp .env.example .env.local
+# Edit .env.local and add your remove.bg key
 
-To learn more about Next.js, take a look at the following resources:
+# 3. Run dev
+npm run dev
+# → http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable            | Description                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `REMOVE_BG_API_KEY` | Your remove.bg API key. Get one free at [remove.bg/api](https://www.remove.bg/api) |
 
-## Deploy on Vercel
+> **Security:** The API key is only ever used in `src/app/api/remove-bg/route.ts` — a server-side Edge Function. It is never sent to the browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How it works
+
+```
+Browser                  Next.js Edge Route        remove.bg
+   │                           │                       │
+   │── POST /api/remove-bg ───►│                       │
+   │   (multipart, no key)     │── POST /removebg ────►│
+   │                           │   (X-API-Key: ***)    │
+   │                           │◄── 200 PNG blob ──────│
+   │◄── 200 PNG blob ──────────│                       │
+   │                           │                       │
+```
+
+---
+
+## License
+
+MIT
