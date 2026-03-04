@@ -27,7 +27,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* CSS vars scoped here */}
       <style>{`
         :root, .dark {
           --bg: #090909; --bg2: #111; --bg3: #1a1a1a; --bg4: #222;
