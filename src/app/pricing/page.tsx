@@ -16,12 +16,12 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { toast, show: showToast } = useToast();
 
-  const getPrice = (plan: (typeof PLANS)[0]) => {
+  /*  const getPrice = (plan: (typeof PLANS)[0]) => {
     if (plan.monthlyPrice === null) return "Custom";
     if (plan.monthlyPrice === 0) return "$0";
     const price = billing === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
     return `$${price}`;
-  };
+  }; */
 
   const getPeriod = (plan: (typeof PLANS)[0]) => {
     if (plan.monthlyPrice === null) return "volume pricing";

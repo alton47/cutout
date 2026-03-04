@@ -21,133 +21,108 @@ export function useRemoveBg() {
     lastPayload: null,
   });
 
-  // Define helper first to avoid hoisting/closure issues
   const setError = useCallback((title: string, message: string) => {
-    setState((s) => ({
-      ...s,
-      appState: "error",
-      error: { title, message },
-    }));
+    setState((s) => ({ ...s, appState: "error", error: { title, message } }));
   }, []);
 
-  const runRemoval = useCallback(
-    async (payload: Payload, originalFileName: string, retries = 2) => {
-      try {
-        const formData = new FormData();
-        if (payload.type === "file") {
-          formData.append("image_file", payload.file);
-        } else {
-          formData.append("image_url", payload.url);
-        }
+  // Standard function declaration solves the "access before declaration" recursion error
+  async function runRemoval(
+    payload: Payload,
+    originalFileName: string,
+    retries = 2,
+  ) {
+    try {
+      const formData = new FormData();
+      payload.type === "file"
+        ? formData.append("image_file", payload.file)
+        : formData.append("image_url", payload.url);
 
-        const res = await fetch("/api/remove-bg", {
-          method: "POST",
-          body: formData,
-        });
+      const res = await fetch("/api/remove-bg", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (res.status === 429) {
-          const retryAfter = parseInt(
-            res.headers.get("Retry-After") ?? "10",
-            10,
-          );
-          if (retries > 0) {
-            await sleep(retryAfter * 1000);
-            return runRemoval(payload, originalFileName, retries - 1);
-          }
-          setError("Rate limit hit", `Too many requests. Wait ${retryAfter}s.`);
-          return;
-        }
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const msg =
-            (data as { error?: string }).error ?? `HTTP ${res.status}`;
-          setError("Processing failed", msg);
-          return;
-        }
-
-        const blob = await res.blob();
-        const width = res.headers.get("X-Width") ?? "";
-        const height = res.headers.get("X-Height") ?? "";
-        const originalSrc =
-          payload.type === "file"
-            ? URL.createObjectURL(payload.file)
-            : payload.url;
-
-        setState((s) => ({
-          ...s,
-          appState: "result",
-          result: {
-            blob,
-            objectUrl: URL.createObjectURL(blob),
-            originalSrc,
-            width,
-            height,
-            originalFileName,
-          },
-        }));
-      } catch {
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get("Retry-After") ?? "10", 10);
         if (retries > 0) {
-          await sleep(1200);
+          await sleep(retryAfter * 1000);
           return runRemoval(payload, originalFileName, retries - 1);
         }
-        setError("Network error", "Check your connection.");
+        setError("Rate limit hit", "Too many requests.");
+        return;
       }
-    },
-    [setError],
-  );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError("Processing failed", data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+
+      const blob = await res.blob();
+      const originalSrc =
+        payload.type === "file"
+          ? URL.createObjectURL(payload.file)
+          : payload.url;
+
+      setState((s) => ({
+        ...s,
+        appState: "result",
+        result: {
+          blob,
+          objectUrl: URL.createObjectURL(blob),
+          originalSrc,
+          width: res.headers.get("X-Width") ?? "",
+          height: res.headers.get("X-Height") ?? "",
+          originalFileName,
+        },
+      }));
+    } catch {
+      if (retries > 0) {
+        await sleep(1200);
+        return runRemoval(payload, originalFileName, retries - 1);
+      }
+      setError("Network error", "Check your connection.");
+    }
+  }
 
   const processFile = useCallback(
     (file: File) => {
-      const validationError = validateImageFile(file);
-      if (validationError) {
-        setError("Invalid file", validationError);
-        return;
-      }
-      const thumbUrl = URL.createObjectURL(file);
+      const err = validateImageFile(file);
+      if (err) return setError("Invalid file", err);
       const payload: Payload = { type: "file", file };
       setState((s) => ({
         ...s,
         appState: "loading",
-        loaderThumb: thumbUrl,
+        loaderThumb: URL.createObjectURL(file),
         lastPayload: payload,
-        error: null,
       }));
       runRemoval(payload, stripExtension(file.name));
     },
-    [runRemoval, setError],
+    [setError],
   );
 
-  const processUrl = useCallback(
-    (url: string) => {
-      const payload: Payload = { type: "url", url };
-      setState((s) => ({
-        ...s,
-        appState: "loading",
-        loaderThumb: url,
-        lastPayload: payload,
-        error: null,
-      }));
-      runRemoval(payload, "image");
-    },
-    [runRemoval],
-  );
+  const processUrl = useCallback((url: string) => {
+    const payload: Payload = { type: "url", url };
+    setState((s) => ({
+      ...s,
+      appState: "loading",
+      loaderThumb: url,
+      lastPayload: payload,
+    }));
+    runRemoval(payload, "image");
+  }, []);
 
   const retry = useCallback(() => {
     setState((s) => {
       if (!s.lastPayload) return { ...s, appState: "upload" };
-      const thumbUrl =
-        s.lastPayload.type === "file"
-          ? URL.createObjectURL(s.lastPayload.file)
-          : s.lastPayload.url;
-      const origName =
+      const name =
         s.lastPayload.type === "file"
           ? stripExtension(s.lastPayload.file.name)
           : "image";
-      setTimeout(() => runRemoval(s.lastPayload!, origName), 0);
-      return { ...s, appState: "loading", loaderThumb: thumbUrl, error: null };
+      setTimeout(() => runRemoval(s.lastPayload!, name), 0);
+      return { ...s, appState: "loading" };
     });
-  }, [runRemoval]);
+  }, []);
 
   const reset = useCallback(() => {
     setState({

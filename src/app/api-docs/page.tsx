@@ -225,8 +225,6 @@ function CodeBlock({
   code,
   lang,
   color,
-  id,
-  apiKey,
 }: {
   code: string;
   lang: string;

@@ -118,6 +118,7 @@ export function Loader({ thumbSrc }: LoaderProps) {
       {/* Thumbnail */}
       <div className="relative inline-block mb-8">
         {thumbSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumbSrc}
             alt="Processing"

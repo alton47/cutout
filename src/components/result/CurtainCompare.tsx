@@ -56,8 +56,11 @@ export function CurtainCompare({
 
   // Check for dark mode safely
   const [isDark, setIsDark] = useState(false);
+
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
+    requestAnimationFrame(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
   }, []);
 
   const checkerClass = isDark ? "checker-dark" : "checker-light";
