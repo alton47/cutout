@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const REMOVE_BG_URL = "https://api.remove.bg/v1.0/removebg";
 
-export const runtime = "edge"; // fastest cold starts on Vercel
+// ❌ REMOVE EDGE
+// export const runtime = "edge";
+
+// ✅ Force Node.js runtime (important for file uploads)
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.REMOVE_BG_API_KEY;
@@ -15,6 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   let body: FormData;
+
   try {
     body = await req.formData();
   } catch {
@@ -23,9 +28,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  // Build upstream FormData
-  const upstream = new FormData();
 
   const imageFile = body.get("image_file");
   const imageUrl = body.get("image_url");
@@ -37,8 +39,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (imageFile && imageFile instanceof Blob) {
-    upstream.append("image_file", imageFile);
+  // 🔥 IMPORTANT: rebuild FormData properly
+  const upstream = new FormData();
+
+  if (imageFile instanceof File) {
+    upstream.append("image_file", imageFile, imageFile.name);
   } else if (typeof imageUrl === "string") {
     upstream.append("image_url", imageUrl);
   }
@@ -46,35 +51,35 @@ export async function POST(req: NextRequest) {
   upstream.append("size", (body.get("size") as string) ?? "auto");
   upstream.append("format", (body.get("format") as string) ?? "png");
 
-  // Optional passthrough params
   const optionals = ["bg_color", "type", "crop", "shadow_type"];
-  optionals.forEach((key) => {
-    const v = body.get(key);
-    if (v !== null) upstream.append(key, v as string);
-  });
 
-  // Forward to remove.bg — keep API key server-side only
+  for (const key of optionals) {
+    const value = body.get(key);
+    if (value) upstream.append(key, value as string);
+  }
+
   let upstreamRes: Response;
+
   try {
     upstreamRes = await fetch(REMOVE_BG_URL, {
       method: "POST",
-      headers: { "X-API-Key": apiKey },
+      headers: {
+        "X-API-Key": apiKey,
+      },
       body: upstream,
     });
   } catch {
     return NextResponse.json(
-      { error: "Could not reach remove.bg. Check your connection." },
-      { status: 502 },
+      { error: "Internal Server Error" },
+      { status: 500 },
     );
   }
 
-  // Error responses from remove.bg
   if (!upstreamRes.ok) {
-    // Pass through rate-limit headers
     if (upstreamRes.status === 429) {
       const retryAfter = upstreamRes.headers.get("Retry-After") ?? "10";
       return NextResponse.json(
-        { error: "Rate limit exceeded. Please wait before retrying." },
+        { error: "Rate limit exceeded." },
         {
           status: 429,
           headers: { "Retry-After": retryAfter },
@@ -82,15 +87,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let errorMessage = `Remove.bg error (HTTP ${upstreamRes.status})`;
+    let errorMessage = `Remove.bg error (${upstreamRes.status})`;
+
     try {
-      const data = (await upstreamRes.json()) as {
-        errors?: Array<{ title?: string }>;
-      };
-      errorMessage = data.errors?.[0]?.title ?? errorMessage;
-    } catch {
-      // ignore parse error
-    }
+      const data = await upstreamRes.json();
+      errorMessage = data?.errors?.[0]?.title ?? errorMessage;
+    } catch {}
 
     return NextResponse.json(
       { error: errorMessage },
@@ -98,13 +100,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Stream the image back
-  const imageBuffer = await upstreamRes.arrayBuffer();
+  // ✅ Proper binary passthrough
+  const arrayBuffer = await upstreamRes.arrayBuffer();
+  const contentType = upstreamRes.headers.get("Content-Type") ?? "image/png";
 
-  return new NextResponse(imageBuffer, {
+  return new NextResponse(arrayBuffer, {
     status: 200,
     headers: {
-      "Content-Type": upstreamRes.headers.get("Content-Type") ?? "image/png",
+      "Content-Type": contentType,
       "X-Width": upstreamRes.headers.get("X-Width") ?? "",
       "X-Height": upstreamRes.headers.get("X-Height") ?? "",
       "X-Credits-Charged": upstreamRes.headers.get("X-Credits-Charged") ?? "",
