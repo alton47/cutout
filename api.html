@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cutout — API Documentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#c8ff57;--accent2:#a8db2e;--accent-glow:rgba(200,255,87,0.14);--err:#ff5252;--ok:#52ffb0;--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;--ease:cubic-bezier(0.4,0,0.2,1)}
+[data-theme="dark"]{--bg:#090909;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;--line:rgba(255,255,255,0.07);--line2:rgba(255,255,255,0.13);--tx:#f0f0f0;--tx2:#777;--tx3:#3a3a3a;--card:#111;--input-bg:#1a1a1a;--shadow:rgba(0,0,0,0.7);--pre-bg:#0d0d0d}
+[data-theme="light"]{--bg:#fafaf7;--bg2:#fff;--bg3:#f0f0ec;--bg4:#e8e8e4;--line:rgba(0,0,0,0.08);--line2:rgba(0,0,0,0.14);--tx:#0f0f0f;--tx2:#5a5a5a;--tx3:#bbb;--card:#fff;--input-bg:#f0f0ec;--shadow:rgba(0,0,0,0.1);--accent:#5a8c00;--accent2:#3d6600;--accent-glow:rgba(90,140,0,0.12);--pre-bg:#f5f5f0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+a{color:inherit;text-decoration:none}button{cursor:pointer;font-family:var(--font)}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:.018;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.page{max-width:960px;margin:0 auto;padding:0 20px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0 24px}
+.logo{font-weight:900;font-size:21px;letter-spacing:-.8px;color:var(--tx)}
+.logo em{font-style:normal;color:var(--accent)}
+.nav-r{display:flex;align-items:center;gap:6px}
+.nb{background:none;border:1.5px solid var(--line2);color:var(--tx2);font-size:13px;font-weight:500;padding:7px 15px;border-radius:100px;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.nb:hover{background:var(--bg3);color:var(--tx)}
+.nb-accent{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.nb-accent:hover{background:var(--accent2);border-color:var(--accent2);color:#000}
+.theme-btn{width:37px;height:37px;border-radius:100px;border:1.5px solid var(--line2);background:var(--bg3);color:var(--tx2);display:flex;align-items:center;justify-content:center;transition:all .2s}
+.theme-btn:hover{color:var(--tx);background:var(--bg4)}
+[data-theme="dark"] .sun-i{display:none}[data-theme="light"] .moon-i{display:none}
+
+/* HERO */
+.api-hero{padding:40px 0 56px;border-bottom:1px solid var(--line);margin-bottom:48px}
+.badge{display:inline-flex;align-items:center;gap:7px;background:var(--accent-glow);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent);font-size:11px;font-weight:700;padding:5px 13px;border-radius:100px;margin-bottom:20px;letter-spacing:.5px;text-transform:uppercase}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 6px var(--accent)}50%{opacity:.3;box-shadow:none}}
+h1{font-size:clamp(36px,5vw,58px);font-weight:900;letter-spacing:-2.5px;line-height:1;color:var(--tx);margin-bottom:14px}
+h1 em{font-style:normal;color:var(--accent)}
+.api-sub{font-size:15px;font-weight:300;color:var(--tx2);max-width:480px;line-height:1.65;margin-bottom:28px}
+
+/* KEY WIDGET */
+.key-widget{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1.5px solid var(--line2);border-radius:100px;padding:6px 8px 6px 16px;max-width:480px}
+.key-widget input{flex:1;background:none;border:none;color:var(--tx);font-family:var(--font);font-size:13px;outline:none;min-width:0}
+.key-widget input::placeholder{color:var(--tx3)}
+.ks-btn{background:var(--bg3);border:1.5px solid var(--line2);color:var(--tx);font-family:var(--font);font-size:12px;font-weight:600;padding:7px 14px;border-radius:100px;transition:all .2s;white-space:nowrap}
+.ks-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ks-btn.saved{border-color:var(--ok);color:var(--ok)}
+
+/* CONTENT */
+.api-body{display:grid;grid-template-columns:200px 1fr;gap:32px;align-items:start}
+@media(max-width:680px){.api-body{grid-template-columns:1fr}}
+
+/* SIDEBAR NAV */
+.api-nav{position:sticky;top:24px}
+.api-nav-list{list-style:none;display:flex;flex-direction:column;gap:2px}
+.api-nav-list a{display:block;font-size:13px;font-weight:500;color:var(--tx2);padding:7px 12px;border-radius:8px;transition:all .2s}
+.api-nav-list a:hover{background:var(--bg3);color:var(--tx)}
+.api-nav-list a.active{background:var(--accent-glow);color:var(--accent)}
+.api-nav-lbl{font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;padding:6px 12px;margin-top:8px}
+@media(max-width:680px){.api-nav{display:none}}
+
+/* SECTIONS */
+.api-content section{margin-bottom:52px}
+.sec-head{font-size:22px;font-weight:800;letter-spacing:-.8px;color:var(--tx);margin-bottom:12px;padding-top:8px}
+.sec-p{font-size:14px;color:var(--tx2);font-weight:300;line-height:1.65;margin-bottom:16px}
+
+/* ENDPOINT CARD */
+.ep-card{background:var(--bg2);border:1.5px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:12px}
+.ep-bar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.method{font-family:var(--mono);font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;letter-spacing:.5px}
+.m-post{background:rgba(200,255,87,.1);color:var(--accent)}[data-theme="light"] .m-post{background:rgba(90,140,0,.12)}
+.m-get{background:rgba(82,255,176,.1);color:var(--ok)}
+.ep-url{font-family:var(--mono);font-size:13px;color:var(--tx);flex:1;word-break:break-all}
+.ep-note{font-size:12px;color:var(--tx2)}
+
+/* TABLE */
+.p-table{width:100%;border-collapse:collapse;font-size:13px}
+.p-table th{text-align:left;padding:10px 18px;font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
+[data-theme="light"] .p-table th{background:rgba(0,0,0,.02)}
+.p-table td{padding:11px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+[data-theme="light"] .p-table td{border-bottom:1px solid rgba(0,0,0,.05)}
+.p-table tr:last-child td{border-bottom:none}
+.pn{font-family:var(--mono);font-size:12px;color:#7dd3fc}[data-theme="light"] .pn{color:#1e5fa8}
+.pt{font-size:11px;color:var(--tx3);background:var(--bg3);padding:2px 7px;border-radius:4px}
+.pr{font-size:11px;color:var(--accent);background:var(--accent-glow);padding:2px 7px;border-radius:4px}
+.po{font-size:11px;color:var(--tx3);background:var(--bg3);padding:2px 7px;border-radius:4px}
+.pd{color:var(--tx2);font-size:13px;line-height:1.5}
+.pm{font-family:var(--mono);font-size:11px;color:#7dd3fc}[data-theme="light"] .pm{color:#1e5fa8}
+
+/* STATUS CODES */
+.sc-grid{display:flex;flex-wrap:wrap;gap:8px;padding:16px 18px}
+.sc-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.sc-code{font-family:var(--mono);font-size:13px;font-weight:700}
+.s2{color:#52ffb0}.s4{color:#fbbf24}.s40{color:#fb923c}.s41{color:var(--err)}.s5{color:var(--err)}
+.sc-txt{font-size:12px;color:var(--tx2)}
+
+/* RESPONSE HEADERS */
+.rh-list{list-style:none;display:flex;flex-direction:column;gap:8px;padding:16px 18px}
+.rh-item{display:flex;align-items:flex-start;gap:12px}
+.rh-name{font-family:var(--mono);font-size:12px;color:#7dd3fc;min-width:180px;flex-shrink:0}[data-theme="light"] .rh-name{color:#1e5fa8}
+.rh-desc{font-size:13px;color:var(--tx2);line-height:1.5}
+
+/* CODE CARDS */
+.code-card{background:var(--bg2);border:1.5px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:10px}
+.code-top{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line)}
+.code-lang{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--tx2);letter-spacing:.3px}
+.ldot{width:8px;height:8px;border-radius:50%}
+.copy-btn{background:none;border:1.5px solid var(--line);color:var(--tx3);font-family:var(--font);font-size:11px;padding:4px 10px;border-radius:6px;transition:all .2s}
+.copy-btn:hover{border-color:var(--line2);color:var(--tx2)}
+.copy-btn.ok{border-color:var(--ok);color:var(--ok)}
+
+pre{padding:20px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.78;color:#888;overflow-x:auto;white-space:pre;tab-size:2;background:var(--pre-bg)}
+.ts{color:var(--accent)}.tk{color:#7dd3fc}.tc{color:var(--tx3);font-style:italic}
+.tf{color:#c4b5fd}.tn{color:#86efac}.tw{color:#fb923c}.tu{color:#67e8f9}
+[data-theme="light"] .ts{color:#5a8c00}[data-theme="light"] .tk{color:#1e5fa8}
+[data-theme="light"] .tf{color:#7c3aed}[data-theme="light"] .tn{color:#166534}
+[data-theme="light"] .tw{color:#c2410c}[data-theme="light"] .tu{color:#0369a1}
+[data-theme="light"] .tc{color:#aaa}
+
+/* DIVIDER */
+.ep-divider{height:1px;background:var(--line);margin:8px 0}
+
+/* INLINE BADGE */
+.inline-badge{display:inline-flex;align-items:center;gap:6px;background:var(--accent-glow);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);color:var(--accent);font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;letter-spacing:.4px}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--bg2);border:1.5px solid var(--line2);color:var(--tx);font-size:13px;font-weight:500;padding:10px 22px;border-radius:100px;z-index:9001;transition:transform .3s;pointer-events:none;white-space:nowrap;box-shadow:0 16px 40px var(--shadow)}
+#toast.up{transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:rgba(82,255,176,.35);color:var(--ok)}
+#toast.bad{border-color:rgba(255,82,82,.35);color:var(--err)}
+
+footer{padding:32px 0 24px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-top:48px}
+.f-logo{font-weight:900;font-size:16px}.f-logo em{font-style:normal;color:var(--accent)}
+.f-links{display:flex;gap:16px}.f-links a{font-size:13px;color:var(--tx3);transition:color .2s}.f-links a:hover{color:var(--tx2)}
+.f-r{font-size:12px;color:var(--tx3)}
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav>
+  <a href="index.html" class="logo">cut<em>out</em></a>
+  <div class="nav-r">
+    <button class="theme-btn nb" onclick="toggleTheme()">
+      <svg class="sun-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="moon-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <a href="index.html" class="nb">← Home</a>
+    <a href="pricing.html" class="nb nb-accent">Pricing</a>
+  </div>
+</nav>
+
+<div class="api-hero">
+  <div class="badge"><span class="badge-dot"></span>REST API · JSON · No database</div>
+  <h1>Build with<br>the <em>cutout</em> API.</h1>
+  <p class="api-sub">One HTTP call. Remove any background in your own app. Supports file upload, base64, and URL. No server setup required.</p>
+  <div class="key-widget">
+    <input id="key-in" type="text" placeholder="Paste your remove.bg API key to update examples…">
+    <button class="ks-btn" id="ks-btn" onclick="saveKey()">Update examples</button>
+  </div>
+  <p style="font-size:11.5px;color:var(--tx3);margin-top:8px">
+    Get a free key at <a href="https://www.remove.bg/api" target="_blank" style="color:var(--accent)">remove.bg/api</a> · 50 free calls/month · Key stored only in your browser
+  </p>
+</div>
+
+<div class="api-body">
+  <!-- SIDEBAR -->
+  <aside class="api-nav">
+    <div class="api-nav-lbl">Endpoints</div>
+    <ul class="api-nav-list">
+      <li><a href="#remove" onclick="setActive(this)">POST /removebg</a></li>
+      <li><a href="#account" onclick="setActive(this)">GET /account</a></li>
+    </ul>
+    <div class="api-nav-lbl">Examples</div>
+    <ul class="api-nav-list">
+      <li><a href="#curl" onclick="setActive(this)">cURL</a></li>
+      <li><a href="#javascript" onclick="setActive(this)">JavaScript</a></li>
+      <li><a href="#python" onclick="setActive(this)">Python</a></li>
+      <li><a href="#nodejs" onclick="setActive(this)">Node.js</a></li>
+      <li><a href="#react" onclick="setActive(this)">React Hook</a></li>
+    </ul>
+    <div class="api-nav-lbl">Reference</div>
+    <ul class="api-nav-list">
+      <li><a href="#ratelimit" onclick="setActive(this)">Rate Limits</a></li>
+      <li><a href="#errors" onclick="setActive(this)">Error Handling</a></li>
+    </ul>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="api-content">
+
+    <!-- REMOVE BG -->
+    <section id="remove">
+      <div class="sec-head">POST /removebg</div>
+      <p class="sec-p">Remove the background from any image. Returns the processed image as binary or JSON. Auth via <code class="pm">X-API-Key</code> header.</p>
+
+      <div class="ep-card">
+        <div class="ep-bar">
+          <span class="method m-post">POST</span>
+          <code class="ep-url">https://api.remove.bg/v1.0/removebg</code>
+        </div>
+        <table class="p-table">
+          <thead><tr><th>Parameter</th><th>Type</th><th>Status</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pn">image_file</code></td><td><span class="pt">binary</span></td><td><span class="pr">one of</span></td><td class="pd">Multipart file upload. Max 22 MB.</td></tr>
+            <tr><td><code class="pn">image_file_b64</code></td><td><span class="pt">string</span></td><td><span class="pr">one of</span></td><td class="pd">Base64-encoded image string.</td></tr>
+            <tr><td><code class="pn">image_url</code></td><td><span class="pt">string</span></td><td><span class="pr">one of</span></td><td class="pd">Public image URL. Must be accessible without auth.</td></tr>
+            <tr><td><code class="pn">size</code></td><td><span class="pt">string</span></td><td><span class="po">optional</span></td><td class="pd"><code class="pm">preview</code> — free, 0.25 MP &nbsp;·&nbsp; <code class="pm">full</code> — 1 credit, 25 MP &nbsp;·&nbsp; <code class="pm">50MP</code> &nbsp;·&nbsp; <code class="pm">auto</code> — recommended</td></tr>
+            <tr><td><code class="pn">format</code></td><td><span class="pt">string</span></td><td><span class="po">optional</span></td><td class="pd"><code class="pm">auto</code> <code class="pm">png</code> <code class="pm">jpg</code> <code class="pm">webp</code> <code class="pm">zip</code></td></tr>
+            <tr><td><code class="pn">bg_color</code></td><td><span class="pt">string</span></td><td><span class="po">optional</span></td><td class="pd">Solid background. Hex e.g. <code class="pm">ffffff</code>, <code class="pm">000000</code></td></tr>
+            <tr><td><code class="pn">type</code></td><td><span class="pt">string</span></td><td><span class="po">optional</span></td><td class="pd"><code class="pm">auto</code> <code class="pm">person</code> <code class="pm">product</code> <code class="pm">car</code> <code class="pm">animal</code> <code class="pm">graphic</code></td></tr>
+            <tr><td><code class="pn">crop</code></td><td><span class="pt">boolean</span></td><td><span class="po">optional</span></td><td class="pd">Crop empty transparent edges from result.</td></tr>
+            <tr><td><code class="pn">shadow_type</code></td><td><span class="pt">string</span></td><td><span class="po">optional</span></td><td class="pd"><code class="pm">auto</code> <code class="pm">car</code> <code class="pm">3D</code> <code class="pm">drop</code> <code class="pm">none</code></td></tr>
+          </tbody>
+        </table>
+        <div class="ep-divider"></div>
+        <div style="padding:12px 18px 4px"><span style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.8px;text-transform:uppercase">Response headers</span></div>
+        <ul class="rh-list">
+          <li class="rh-item"><code class="rh-name">X-Width / X-Height</code><span class="rh-desc">Output image dimensions in pixels.</span></li>
+          <li class="rh-item"><code class="rh-name">X-Credits-Charged</code><span class="rh-desc">Credits deducted for this call (0 for free preview).</span></li>
+          <li class="rh-item"><code class="rh-name">X-Type</code><span class="rh-desc">Detected foreground type (person, product, car…)</span></li>
+          <li class="rh-item"><code class="rh-name">X-Foreground-*</code><span class="rh-desc">Top, left, width, height of detected foreground bounding box.</span></li>
+        </ul>
+        <div class="ep-divider"></div>
+        <div style="padding:12px 18px 4px"><span style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.8px;text-transform:uppercase">Status codes</span></div>
+        <div class="sc-grid">
+          <div class="sc-item"><span class="sc-code s2">200</span><span class="sc-txt">Success — binary image</span></div>
+          <div class="sc-item"><span class="sc-code s4">400</span><span class="sc-txt">Bad params / unprocessable</span></div>
+          <div class="sc-item"><span class="sc-code s40">402</span><span class="sc-txt">Insufficient credits</span></div>
+          <div class="sc-item"><span class="sc-code s41">403</span><span class="sc-txt">Invalid / missing API key</span></div>
+          <div class="sc-item"><span class="sc-code s40">429</span><span class="sc-txt">Rate limited — check Retry-After</span></div>
+          <div class="sc-item"><span class="sc-code s5">5xx</span><span class="sc-txt">Server error — exponential backoff</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="account">
+      <div class="sec-head">GET /account</div>
+      <p class="sec-p">Fetch your current credit balance and remaining free API calls. Useful for displaying balance in your UI.</p>
+      <div class="ep-card">
+        <div class="ep-bar">
+          <span class="method m-get">GET</span>
+          <code class="ep-url">https://api.remove.bg/v1.0/account</code>
+        </div>
+        <div style="padding:16px 18px">
+          <p class="pd">Returns JSON with <code class="pm">credits.total</code>, <code class="pm">credits.subscription</code>, <code class="pm">credits.payg</code>, and <code class="pm">api.free_calls</code>.</p>
+          <br>
+          <pre style="border-radius:12px;font-size:12px">{
+  <span class="tk">"data"</span>: {
+    <span class="tk">"attributes"</span>: {
+      <span class="tk">"credits"</span>: { <span class="tk">"total"</span>: <span class="tn">200</span>, <span class="tk">"subscription"</span>: <span class="tn">150</span>, <span class="tk">"payg"</span>: <span class="tn">50</span> },
+      <span class="tk">"api"</span>: { <span class="tk">"free_calls"</span>: <span class="tn">42</span> }
+    }
+  }
+}</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- CURL -->
+    <section id="curl">
+      <div class="sec-head">cURL</div>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#f97316"></div>cURL</div><button class="copy-btn" onclick="cp('c-curl',this)">Copy</button></div>
+        <pre id="c-curl"><span class="tc"># File upload</span>
+curl -X POST \
+  -H <span class="ts">'X-API-Key: <span class="k-slot">YOUR_API_KEY</span>'</span> \
+  -F <span class="ts">'image_file=@/path/to/photo.jpg'</span> \
+  -F <span class="ts">'size=auto'</span> \
+  -f <span class="tu">https://api.remove.bg/v1.0/removebg</span> \
+  -o <span class="ts">photo-cutout.png</span>
+
+<span class="tc"># URL input</span>
+curl -X POST \
+  -H <span class="ts">'X-API-Key: <span class="k-slot">YOUR_API_KEY</span>'</span> \
+  -F <span class="ts">'image_url=https://example.com/photo.jpg'</span> \
+  -F <span class="ts">'size=auto'</span> \
+  -f <span class="tu">https://api.remove.bg/v1.0/removebg</span> \
+  -o <span class="ts">photo-cutout.png</span></pre>
+      </div>
+    </section>
+
+    <!-- JS -->
+    <section id="javascript">
+      <div class="sec-head">JavaScript</div>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#eab308"></div>JavaScript (browser)</div><button class="copy-btn" onclick="cp('c-js',this)">Copy</button></div>
+        <pre id="c-js"><span class="tc">// Works directly in browser — no backend needed</span>
+<span class="tw">async function</span> <span class="tf">removeBg</span>(imageFile) {
+  <span class="tw">const</span> form = <span class="tw">new</span> <span class="tf">FormData</span>();
+  form.<span class="tf">append</span>(<span class="ts">'image_file'</span>, imageFile);
+  form.<span class="tf">append</span>(<span class="ts">'size'</span>, <span class="ts">'auto'</span>);
+
+  <span class="tw">const</span> res = <span class="tw">await</span> <span class="tf">fetch</span>(<span class="tu">'https://api.remove.bg/v1.0/removebg'</span>, {
+    method: <span class="ts">'POST'</span>,
+    headers: { <span class="ts">'X-API-Key'</span>: <span class="ts">'<span class="k-slot">YOUR_API_KEY</span>'</span> },
+    body: form
+  });
+
+  <span class="tw">if</span> (!res.ok) {
+    <span class="tw">const</span> err = <span class="tw">await</span> res.<span class="tf">json</span>().<span class="tf">catch</span>(() => ({}));
+    <span class="tw">throw new</span> <span class="tf">Error</span>(err.errors?.[<span class="tn">0</span>]?.title ?? `HTTP ${res.status}`);
+  }
+
+  <span class="tw">const</span> blob = <span class="tw">await</span> res.<span class="tf">blob</span>();
+  <span class="tw">return</span> URL.<span class="tf">createObjectURL</span>(blob); <span class="tc">// ready to use in &lt;img src&gt;</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- PYTHON -->
+    <section id="python">
+      <div class="sec-head">Python</div>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#3b82f6"></div>Python</div><button class="copy-btn" onclick="cp('c-py',this)">Copy</button></div>
+        <pre id="c-py"><span class="tw">import</span> requests
+<span class="tw">from</span> pathlib <span class="tw">import</span> Path
+
+<span class="tw">def</span> <span class="tf">remove_bg</span>(input_path: str, api_key: str) -> bytes:
+    path = <span class="tf">Path</span>(input_path)
+    <span class="tw">with</span> path.<span class="tf">open</span>(<span class="ts">'rb'</span>) <span class="tw">as</span> f:
+        res = requests.<span class="tf">post</span>(
+            <span class="tu">'https://api.remove.bg/v1.0/removebg'</span>,
+            files={<span class="ts">'image_file'</span>: (path.name, f, <span class="ts">'image/jpeg'</span>)},
+            data={<span class="ts">'size'</span>: <span class="ts">'auto'</span>},
+            headers={<span class="ts">'X-API-Key'</span>: <span class="ts">'<span class="k-slot">YOUR_API_KEY</span>'</span>},
+        )
+    res.<span class="tf">raise_for_status</span>()
+    <span class="tw">return</span> res.content  <span class="tc"># PNG bytes</span>
+
+<span class="tc"># Save result</span>
+result = <span class="tf">remove_bg</span>(<span class="ts">'photo.jpg'</span>, <span class="ts">'<span class="k-slot">YOUR_API_KEY</span>'</span>)
+<span class="tf">Path</span>(<span class="ts">'photo-cutout.png'</span>).<span class="tf">write_bytes</span>(result)</pre>
+      </div>
+    </section>
+
+    <!-- NODE -->
+    <section id="nodejs">
+      <div class="sec-head">Node.js</div>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#52ffb0"></div>Node.js with retry logic</div><button class="copy-btn" onclick="cp('c-node',this)">Copy</button></div>
+        <pre id="c-node"><span class="tw">const</span> { fetch, FormData, Blob } = require(<span class="ts">'undici'</span>);
+<span class="tw">const</span> fs = require(<span class="ts">'fs'</span>);
+<span class="tw">const</span> path = require(<span class="ts">'path'</span>);
+
+<span class="tw">async function</span> <span class="tf">removeBg</span>(filePath, retries = <span class="tn">3</span>) {
+  <span class="tw">const</span> form = <span class="tw">new</span> <span class="tf">FormData</span>();
+  form.<span class="tf">set</span>(<span class="ts">'image_file'</span>, <span class="tw">new</span> <span class="tf">Blob</span>([fs.<span class="tf">readFileSync</span>(filePath)]));
+  form.<span class="tf">set</span>(<span class="ts">'size'</span>, <span class="ts">'auto'</span>);
+
+  <span class="tw">const</span> res = <span class="tw">await</span> <span class="tf">fetch</span>(<span class="tu">'https://api.remove.bg/v1.0/removebg'</span>, {
+    method: <span class="ts">'POST'</span>,
+    headers: { <span class="ts">'X-API-Key'</span>: <span class="ts">'<span class="k-slot">YOUR_API_KEY</span>'</span> },
+    body: form,
+  });
+
+  <span class="tc">// Handle rate limit with automatic retry</span>
+  <span class="tw">if</span> (res.status === <span class="tn">429</span> && retries > <span class="tn">0</span>) {
+    <span class="tw">const</span> wait = (+res.headers.<span class="tf">get</span>(<span class="ts">'Retry-After'</span>) || <span class="tn">10</span>) * <span class="tn">1000</span>;
+    console.<span class="tf">log</span>(`Rate limited — retrying in ${wait / <span class="tn">1000</span>}s`);
+    <span class="tw">await new</span> <span class="tf">Promise</span>(r => <span class="tf">setTimeout</span>(r, wait));
+    <span class="tw">return</span> <span class="tf">removeBg</span>(filePath, retries - <span class="tn">1</span>);
+  }
+
+  <span class="tw">if</span> (!res.ok) {
+    <span class="tw">const</span> body = <span class="tw">await</span> res.<span class="tf">text</span>();
+    <span class="tw">throw new</span> <span class="tf">Error</span>(`HTTP ${res.status}: ${body}`);
+  }
+
+  <span class="tw">const</span> buf = Buffer.<span class="tf">from</span>(<span class="tw">await</span> res.<span class="tf">arrayBuffer</span>());
+  <span class="tw">const</span> outName = path.<span class="tf">basename</span>(filePath, path.<span class="tf">extname</span>(filePath)) + <span class="ts">'-cutout.png'</span>;
+  fs.<span class="tf">writeFileSync</span>(outName, buf);
+  console.<span class="tf">log</span>(<span class="ts">`Saved: ${outName}`</span>);
+  <span class="tw">return</span> buf;
+}</pre>
+      </div>
+    </section>
+
+    <!-- REACT -->
+    <section id="react">
+      <div class="sec-head">React Hook</div>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#61dafb"></div>React — drop-in hook</div><button class="copy-btn" onclick="cp('c-react',this)">Copy</button></div>
+        <pre id="c-react"><span class="tw">import</span> { useState, useCallback } <span class="tw">from</span> <span class="ts">'react'</span>;
+
+<span class="tc">/**
+ * useRemoveBg — drop this into any React component.
+ * Pass your API key as a prop or env var.
+ */</span>
+<span class="tw">export function</span> <span class="tf">useRemoveBg</span>(apiKey) {
+  <span class="tw">const</span> [state, setState] = useState({
+    loading: <span class="tw">false</span>,
+    resultUrl: <span class="tw">null</span>,
+    resultBlob: <span class="tw">null</span>,
+    error: <span class="tw">null</span>,
+  });
+
+  <span class="tw">const</span> remove = <span class="tf">useCallback</span>(<span class="tw">async</span> (file) => {
+    setState(s => ({ ...s, loading: <span class="tw">true</span>, error: <span class="tw">null</span> }));
+
+    <span class="tw">const</span> form = <span class="tw">new</span> <span class="tf">FormData</span>();
+    form.<span class="tf">append</span>(<span class="ts">'image_file'</span>, file);
+    form.<span class="tf">append</span>(<span class="ts">'size'</span>, <span class="ts">'auto'</span>);
+
+    <span class="tw">try</span> {
+      <span class="tw">const</span> res = <span class="tw">await</span> <span class="tf">fetch</span>(<span class="tu">'https://api.remove.bg/v1.0/removebg'</span>, {
+        method: <span class="ts">'POST'</span>,
+        headers: { <span class="ts">'X-API-Key'</span>: apiKey },
+        body: form,
+      });
+      <span class="tw">if</span> (!res.ok) {
+        <span class="tw">const</span> d = <span class="tw">await</span> res.<span class="tf">json</span>().<span class="tf">catch</span>(() => ({}));
+        <span class="tw">throw new</span> <span class="tf">Error</span>(d.errors?.[<span class="tn">0</span>]?.title ?? `Error ${res.status}`);
+      }
+      <span class="tw">const</span> blob = <span class="tw">await</span> res.<span class="tf">blob</span>();
+      <span class="tw">const</span> url = URL.<span class="tf">createObjectURL</span>(blob);
+      setState({ loading: <span class="tw">false</span>, resultUrl: url, resultBlob: blob, error: <span class="tw">null</span> });
+    } <span class="tw">catch</span> (err) {
+      setState({ loading: <span class="tw">false</span>, resultUrl: <span class="tw">null</span>, resultBlob: <span class="tw">null</span>, error: err.message });
+    }
+  }, [apiKey]);
+
+  <span class="tw">const</span> reset = <span class="tf">useCallback</span>(() => {
+    setState({ loading: <span class="tw">false</span>, resultUrl: <span class="tw">null</span>, resultBlob: <span class="tw">null</span>, error: <span class="tw">null</span> });
+  }, []);
+
+  <span class="tw">return</span> { ...state, remove, reset };
+}
+
+<span class="tc">// ─── Usage ────────────────────────────────────────
+// const { loading, resultUrl, error, remove } = useRemoveBg(apiKey);
+//
+// &lt;input type="file" onChange={e => remove(e.target.files[0])} /&gt;
+// {loading && &lt;Spinner /&gt;}
+// {resultUrl && &lt;img src={resultUrl} alt="cutout" /&gt;}
+// {error && &lt;p&gt;{error}&lt;/p&gt;}</span></pre>
+      </div>
+    </section>
+
+    <!-- RATE LIMITS -->
+    <section id="ratelimit">
+      <div class="sec-head">Rate Limits</div>
+      <p class="sec-p">Rate limit is resolution-dependent: 500 megapixel-images per minute. A 4 MP image counts as 4 units.</p>
+      <div class="ep-card">
+        <table class="p-table">
+          <thead><tr><th>Resolution</th><th>Effective limit</th></tr></thead>
+          <tbody>
+            <tr><td class="pd">625×400 (1 MP)</td><td class="pd">500/min</td></tr>
+            <tr><td class="pd">1600×1200 (2 MP)</td><td class="pd">250/min</td></tr>
+            <tr><td class="pd">2500×1600 (4 MP)</td><td class="pd">125/min</td></tr>
+            <tr><td class="pd">4000×2500 (10 MP)</td><td class="pd">50/min</td></tr>
+            <tr><td class="pd">6250×4000 (25 MP)</td><td class="pd">20/min</td></tr>
+          </tbody>
+        </table>
+        <div class="ep-divider"></div>
+        <div style="padding:14px 18px">
+          <p class="pd">On 429, read <code class="pm">Retry-After</code> header and wait that many seconds. On 5xx, use exponential backoff with jitter (1s, 2s, 4s, 8s).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ERRORS -->
+    <section id="errors">
+      <div class="sec-head">Error Handling</div>
+      <p class="sec-p">All error responses are JSON with an <code class="pm">errors</code> array. Each error has a <code class="pm">title</code> and optional <code class="pm">code</code>.</p>
+      <div class="code-card">
+        <div class="code-top"><div class="code-lang"><div class="ldot" style="background:#888"></div>Robust fetch wrapper</div><button class="copy-btn" onclick="cp('c-err',this)">Copy</button></div>
+        <pre id="c-err"><span class="tw">async function</span> <span class="tf">removeBgSafe</span>(file, apiKey, retries = <span class="tn">3</span>) {
+  <span class="tw">const</span> form = <span class="tw">new</span> <span class="tf">FormData</span>();
+  form.<span class="tf">append</span>(<span class="ts">'image_file'</span>, file);
+  form.<span class="tf">append</span>(<span class="ts">'size'</span>, <span class="ts">'auto'</span>);
+
+  <span class="tw">let</span> attempt = <span class="tn">0</span>;
+
+  <span class="tw">while</span> (attempt <= retries) {
+    <span class="tw">try</span> {
+      <span class="tw">const</span> res = <span class="tw">await</span> <span class="tf">fetch</span>(<span class="tu">'https://api.remove.bg/v1.0/removebg'</span>, {
+        method: <span class="ts">'POST'</span>,
+        headers: { <span class="ts">'X-API-Key'</span>: apiKey },
+        body: form,
+      });
+
+      <span class="tw">if</span> (res.status === <span class="tn">429</span>) { <span class="tc">// rate limit — respect Retry-After</span>
+        <span class="tw">const</span> wait = +res.headers.<span class="tf">get</span>(<span class="ts">'Retry-After'</span>) * <span class="tn">1000</span> || <span class="tn">10000</span>;
+        <span class="tw">await</span> <span class="tf">sleep</span>(wait); attempt++; <span class="tw">continue</span>;
+      }
+
+      <span class="tw">if</span> (res.status >= <span class="tn">500</span>) { <span class="tc">// server error — exponential backoff + jitter</span>
+        <span class="tw">const</span> wait = (<span class="tn">2</span> ** attempt) * <span class="tn">1000</span> + Math.<span class="tf">random</span>() * <span class="tn">500</span>;
+        <span class="tw">await</span> <span class="tf">sleep</span>(wait); attempt++; <span class="tw">continue</span>;
+      }
+
+      <span class="tw">if</span> (!res.ok) { <span class="tc">// 4xx — don't retry</span>
+        <span class="tw">const</span> err = <span class="tw">await</span> res.<span class="tf">json</span>().<span class="tf">catch</span>(() => ({}));
+        <span class="tw">throw new</span> <span class="tf">Error</span>(err.errors?.[<span class="tn">0</span>]?.title ?? `HTTP ${res.status}`);
+      }
+
+      <span class="tw">return await</span> res.<span class="tf">blob</span>(); <span class="tc">// success ✓</span>
+
+    } <span class="tw">catch</span> (e) {
+      <span class="tw">if</span> (attempt >= retries) <span class="tw">throw</span> e;
+      <span class="tw">await</span> <span class="tf">sleep</span>(<span class="tn">1500</span>); attempt++;
+    }
+  }
+}
+
+<span class="tw">const</span> <span class="tf">sleep</span> = ms => <span class="tw">new</span> <span class="tf">Promise</span>(r => <span class="tf">setTimeout</span>(r, ms));</pre>
+      </div>
+    </section>
+
+  </div><!-- /api-content -->
+</div><!-- /api-body -->
+
+<footer>
+  <div class="f-logo">cut<em>out</em></div>
+  <div class="f-links"><a href="index.html">Home</a><a href="pricing.html">Pricing</a><a href="https://www.remove.bg/api" target="_blank">remove.bg</a></div>
+  <div class="f-r">No database · No backend · Powered by remove.bg</div>
+</footer>
+
+</div><!-- /page -->
+<div id="toast"></div>
+
+<script>
+(function(){ const t=localStorage.getItem('cutout_theme'); if(t) document.documentElement.setAttribute('data-theme',t); })();
+function toggleTheme(){ const n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',n); localStorage.setItem('cutout_theme',n); }
+function setActive(el){ document.querySelectorAll('.api-nav-list a').forEach(a=>a.classList.remove('active')); el.classList.add('active'); }
+
+function saveKey(){
+  const v=document.getElementById('key-in').value.trim();
+  if(!v){ toast('Enter an API key first','bad'); return; }
+  localStorage.setItem('cutout_key',v);
+  document.querySelectorAll('.k-slot').forEach(el=>el.textContent=v);
+  const b=document.getElementById('ks-btn');
+  b.textContent='Saved ✓'; b.classList.add('saved');
+  setTimeout(()=>{ b.textContent='Update examples'; b.classList.remove('saved'); },2500);
+  toast('API key saved — examples updated ✓','ok');
+}
+
+// Load saved key
+(function(){
+  const k=localStorage.getItem('cutout_key');
+  if(k && k !== 'YOUR_REMOVEBG_KEY_HERE'){
+    document.getElementById('key-in').value=k;
+    document.querySelectorAll('.k-slot').forEach(el=>el.textContent=k);
+  }
+})();
+
+function cp(id,btn){
+  navigator.clipboard.writeText(document.getElementById(id).innerText).then(()=>{
+    btn.textContent='Copied ✓'; btn.classList.add('ok');
+    setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('ok'); },2200);
+  });
+}
+
+let _tt;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  clearTimeout(_tt); el.textContent=msg; el.className='up '+(type||'');
+  _tt=setTimeout(()=>{ el.className=type||''; },3400);
+}
+</script>
+</body>
+</html>
