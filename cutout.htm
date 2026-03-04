@@ -1,0 +1,2468 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cutout — AI background removal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --surface: #111111;
+        --surface2: #1a1a1a;
+        --border: rgba(255, 255, 255, 0.07);
+        --border-hover: rgba(255, 255, 255, 0.15);
+        --text: #f0f0f0;
+        --text-muted: #666;
+        --text-dim: #444;
+        --accent: #e8ff5a;
+        --accent-rgb: 232, 255, 90;
+        --accent-dark: #c8e000;
+        --error: #ff4d4d;
+        --success: #4dff91;
+        --radius: 16px;
+        --radius-sm: 10px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        overflow-x: hidden;
+        cursor: default;
+      }
+
+      /* ── NOISE TEXTURE ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.4;
+      }
+
+      /* ── LAYOUT ── */
+      .app {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 24px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── NAV ── */
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 28px 0 32px;
+      }
+
+      .logo {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: -0.5px;
+        color: var(--text);
+      }
+      .logo span {
+        color: var(--accent);
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-ghost {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        padding: 8px 16px;
+        border-radius: 100px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-ghost:hover {
+        border-color: var(--border-hover);
+        color: var(--text);
+      }
+
+      .btn-accent {
+        background: var(--accent);
+        border: none;
+        color: #000;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 8px 18px;
+        border-radius: 100px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-accent:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+
+      /* ── HERO ── */
+      .hero {
+        text-align: center;
+        padding: 20px 0 48px;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(232, 255, 90, 0.08);
+        border: 1px solid rgba(232, 255, 90, 0.2);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 5px 12px;
+        border-radius: 100px;
+        margin-bottom: 28px;
+        letter-spacing: 0.3px;
+      }
+      .hero-badge::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(0.8);
+        }
+      }
+
+      h1 {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: clamp(40px, 7vw, 80px);
+        line-height: 1;
+        letter-spacing: -2px;
+        color: var(--text);
+        margin-bottom: 16px;
+      }
+      h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+
+      .hero-sub {
+        font-size: 16px;
+        color: var(--text-muted);
+        font-weight: 300;
+        max-width: 380px;
+        margin: 0 auto 40px;
+        line-height: 1.6;
+      }
+
+      /* ── UPLOAD ZONE ── */
+      #upload-zone {
+        position: relative;
+        border: 1.5px dashed var(--border);
+        border-radius: 24px;
+        padding: 64px 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        background: var(--surface);
+        overflow: hidden;
+        margin-bottom: 16px;
+      }
+
+      #upload-zone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 60% 40% at 50% 100%,
+          rgba(232, 255, 90, 0.05),
+          transparent
+        );
+        pointer-events: none;
+        transition: opacity 0.3s;
+        opacity: 0;
+      }
+
+      #upload-zone:hover::before,
+      #upload-zone.drag-over::before {
+        opacity: 1;
+      }
+
+      #upload-zone:hover,
+      #upload-zone.drag-over {
+        border-color: rgba(232, 255, 90, 0.4);
+        background: rgba(232, 255, 90, 0.03);
+        transform: scale(1.002);
+      }
+
+      #upload-zone.drag-over {
+        border-style: solid;
+        border-color: var(--accent);
+      }
+
+      .upload-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 20px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+      }
+      #upload-zone:hover .upload-icon {
+        background: rgba(232, 255, 90, 0.1);
+        border-color: rgba(232, 255, 90, 0.3);
+      }
+      .upload-icon svg {
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+      #upload-zone:hover .upload-icon svg {
+        opacity: 1;
+      }
+
+      .upload-title {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--text);
+        margin-bottom: 8px;
+      }
+
+      .upload-sub {
+        font-size: 14px;
+        color: var(--text-muted);
+        font-weight: 300;
+        margin-bottom: 24px;
+      }
+
+      .upload-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--accent);
+        color: #000;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 12px 24px;
+        border-radius: 100px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 20px;
+      }
+      .upload-cta:hover {
+        background: var(--accent-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(232, 255, 90, 0.2);
+      }
+
+      .upload-formats {
+        font-size: 12px;
+        color: var(--text-dim);
+        letter-spacing: 0.5px;
+      }
+
+      /* URL input */
+      .url-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .url-input {
+        flex: 1;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        padding: 10px 16px;
+        border-radius: 100px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .url-input::placeholder {
+        color: var(--text-dim);
+      }
+      .url-input:focus {
+        border-color: rgba(232, 255, 90, 0.4);
+      }
+
+      .url-submit {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 10px 18px;
+        border-radius: 100px;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+      .url-submit:hover {
+        border-color: var(--border-hover);
+      }
+
+      /* Samples */
+      .samples {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 0 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .samples-label {
+        font-size: 12px;
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+      .sample-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.2s;
+        overflow: hidden;
+        background: var(--surface2);
+      }
+      .sample-img:hover {
+        border-color: var(--accent);
+        transform: scale(1.08);
+        box-shadow: 0 4px 16px rgba(232, 255, 90, 0.15);
+      }
+
+      /* ── FILE INPUT HIDDEN ── */
+      #file-input {
+        display: none;
+      }
+
+      /* ── PROCESSING ── */
+      #processing-view {
+        display: none;
+        text-align: center;
+        padding: 80px 40px;
+        background: var(--surface);
+        border-radius: 24px;
+        border: 1.5px solid var(--border);
+        margin-bottom: 16px;
+      }
+      #processing-view.active {
+        display: block;
+      }
+
+      .process-thumb {
+        width: 80px;
+        height: 80px;
+        border-radius: 14px;
+        object-fit: cover;
+        margin: 0 auto 24px;
+        display: block;
+        opacity: 0.5;
+        filter: blur(1px);
+      }
+
+      .spinner-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .process-text {
+        font-family: "Syne", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .process-sub {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 8px;
+      }
+
+      /* ── RESULT ── */
+      #result-view {
+        display: none;
+        animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      #result-view.active {
+        display: block;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .result-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .result-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+      }
+
+      .result-card-header {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+
+      .result-dims {
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+
+      .result-img-wrap {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 280px;
+      }
+
+      .result-img-wrap.transparent {
+        background-image:
+          linear-gradient(45deg, #1c1c1c 25%, transparent 25%),
+          linear-gradient(-45deg, #1c1c1c 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #1c1c1c 75%),
+          linear-gradient(-45deg, transparent 75%, #1c1c1c 75%);
+        background-size: 16px 16px;
+        background-position:
+          0 0,
+          0 8px,
+          8px -8px,
+          -8px 0px;
+        background-color: #131313;
+      }
+
+      .result-img {
+        max-width: 100%;
+        max-height: 320px;
+        object-fit: contain;
+        border-radius: 8px;
+        display: block;
+      }
+
+      /* ── ACTIONS BAR ── */
+      .actions-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 14px 20px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .action-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+
+      .action-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      .format-select {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s;
+      }
+      .format-select:focus {
+        border-color: rgba(232, 255, 90, 0.4);
+      }
+      .format-select option {
+        background: #1a1a1a;
+      }
+
+      .color-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .color-swatch {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1.5px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        position: relative;
+      }
+      .color-swatch:hover {
+        transform: scale(1.15);
+      }
+      .color-swatch.active {
+        border-color: var(--accent);
+      }
+
+      .color-swatch.transparent-swatch {
+        background-image:
+          linear-gradient(45deg, #333 25%, transparent 25%),
+          linear-gradient(-45deg, #333 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #333 75%),
+          linear-gradient(-45deg, transparent 75%, #333 75%);
+        background-size: 8px 8px;
+        background-position:
+          0 0,
+          0 4px,
+          4px -4px,
+          -4px 0px;
+        background-color: #1a1a1a;
+      }
+
+      .actions-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .btn-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-icon:hover {
+        border-color: var(--border-hover);
+        color: var(--text);
+      }
+
+      .btn-download {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--accent);
+        color: #000;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 20px;
+        border-radius: 100px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-download:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(232, 255, 90, 0.2);
+      }
+
+      .btn-reset {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        padding: 10px 18px;
+        border-radius: 100px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-reset:hover {
+        border-color: var(--border-hover);
+        color: var(--text);
+      }
+
+      /* ── ERROR ── */
+      #error-view {
+        display: none;
+        background: var(--surface);
+        border: 1px solid rgba(255, 77, 77, 0.2);
+        border-radius: 20px;
+        padding: 48px 40px;
+        text-align: center;
+        margin-bottom: 16px;
+      }
+      #error-view.active {
+        display: block;
+      }
+
+      .error-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 77, 77, 0.1);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        color: var(--error);
+      }
+
+      .error-title {
+        font-family: "Syne", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+
+      .error-msg {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 24px;
+        line-height: 1.6;
+      }
+
+      .error-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .btn-retry {
+        background: var(--error);
+        color: #fff;
+        font-family: "DM Sans", sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 22px;
+        border-radius: 100px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-retry:hover {
+        opacity: 0.85;
+      }
+
+      /* ── API SECTION ── */
+      .api-section {
+        margin: 64px 0 48px;
+        padding-top: 48px;
+        border-top: 1px solid var(--border);
+      }
+
+      .api-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      .api-title {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: clamp(28px, 4vw, 44px);
+        letter-spacing: -1.5px;
+        line-height: 1;
+        color: var(--text);
+      }
+      .api-title span {
+        color: var(--accent);
+      }
+
+      .api-subtitle {
+        font-size: 15px;
+        color: var(--text-muted);
+        font-weight: 300;
+        line-height: 1.6;
+        max-width: 360px;
+        margin-top: 10px;
+      }
+
+      .api-key-chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        padding: 6px 8px 6px 14px;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .api-key-chip input {
+        background: none;
+        border: none;
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        outline: none;
+        width: 200px;
+      }
+      .api-key-chip input::placeholder {
+        color: var(--text-dim);
+      }
+
+      .save-key-btn {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 6px 14px;
+        border-radius: 100px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .save-key-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .save-key-btn.saved {
+        border-color: var(--success);
+        color: var(--success);
+      }
+
+      /* ── CODE BLOCKS ── */
+      .api-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      @media (max-width: 768px) {
+        .api-grid {
+          grid-template-columns: 1fr;
+        }
+        .result-grid {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          letter-spacing: -1px;
+        }
+      }
+
+      .code-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+      }
+
+      .code-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .code-lang {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+      }
+
+      .lang-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .copy-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-family: "DM Sans", sans-serif;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .copy-btn:hover {
+        border-color: var(--border-hover);
+        color: var(--text-muted);
+      }
+      .copy-btn.copied {
+        border-color: var(--success);
+        color: var(--success);
+      }
+
+      pre {
+        padding: 20px 18px;
+        font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: #aaa;
+        overflow-x: auto;
+        white-space: pre;
+        tab-size: 2;
+      }
+
+      .t-str {
+        color: #e8ff5a;
+      }
+      .t-key {
+        color: #7dd3fc;
+      }
+      .t-cmt {
+        color: #444;
+        font-style: italic;
+      }
+      .t-fn {
+        color: #c4b5fd;
+      }
+      .t-num {
+        color: #86efac;
+      }
+      .t-kw {
+        color: #fb923c;
+      }
+      .t-url {
+        color: #67e8f9;
+      }
+
+      /* ── API ENDPOINT CARD ── */
+      .endpoint-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 12px;
+      }
+
+      .endpoint-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .method-badge {
+        font-family: "Syne", sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        letter-spacing: 0.5px;
+      }
+      .method-post {
+        background: rgba(232, 255, 90, 0.12);
+        color: var(--accent);
+      }
+      .method-get {
+        background: rgba(77, 255, 145, 0.12);
+        color: var(--success);
+      }
+
+      .endpoint-url {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: var(--text);
+        flex: 1;
+      }
+
+      .endpoint-desc {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .params-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      .params-table th {
+        text-align: left;
+        padding: 10px 20px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-dim);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .params-table td {
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        vertical-align: top;
+      }
+      .params-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .param-name {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: #7dd3fc;
+      }
+
+      .param-type {
+        font-size: 11px;
+        color: var(--text-dim);
+        background: var(--surface2);
+        padding: 2px 7px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+
+      .param-required {
+        font-size: 11px;
+        color: var(--accent);
+        background: rgba(232, 255, 90, 0.08);
+        padding: 2px 7px;
+        border-radius: 4px;
+      }
+
+      .param-optional {
+        font-size: 11px;
+        color: var(--text-dim);
+        background: var(--surface2);
+        padding: 2px 7px;
+        border-radius: 4px;
+      }
+
+      .param-desc {
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      /* ── STATUS CODES ── */
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+        padding: 16px 20px;
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+      }
+
+      .status-code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .s200 {
+        color: var(--success);
+      }
+      .s400 {
+        color: #fbbf24;
+      }
+      .s402 {
+        color: #fb923c;
+      }
+      .s403 {
+        color: var(--error);
+      }
+      .s429 {
+        color: #fb923c;
+      }
+      .s5xx {
+        color: var(--error);
+      }
+
+      .status-text {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        padding: 40px 0 32px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      .footer-left {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .footer-logo {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 16px;
+        color: var(--text);
+      }
+      .footer-logo span {
+        color: var(--accent);
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 20px;
+      }
+      .footer-links a {
+        font-size: 13px;
+        color: var(--text-dim);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .footer-links a:hover {
+        color: var(--text-muted);
+      }
+
+      .footer-right {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      /* ── TOAST ── */
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 13px;
+        padding: 10px 20px;
+        border-radius: 100px;
+        z-index: 10000;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      }
+      #toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+      #toast.success {
+        border-color: rgba(77, 255, 145, 0.3);
+        color: var(--success);
+      }
+      #toast.error-t {
+        border-color: rgba(255, 77, 77, 0.3);
+        color: var(--error);
+      }
+
+      /* ── SETTINGS PANEL ── */
+      #settings-panel {
+        display: none;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 24px;
+        margin-bottom: 16px;
+        animation: fadeUp 0.3s ease;
+      }
+      #settings-panel.open {
+        display: block;
+      }
+
+      .settings-title {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+
+      .settings-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .settings-label {
+        font-size: 13px;
+        color: var(--text-muted);
+        min-width: 100px;
+      }
+
+      .settings-input {
+        flex: 1;
+        min-width: 200px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        padding: 10px 16px;
+        border-radius: 100px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .settings-input:focus {
+        border-color: rgba(232, 255, 90, 0.4);
+      }
+
+      .balance-display {
+        font-size: 12px;
+        color: var(--text-dim);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .balance-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .balance-val {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      /* ── DIVIDER ── */
+      .or-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 0;
+      }
+      .or-divider::before,
+      .or-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .or-text {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- NAV -->
+      <nav>
+        <div class="logo">cut<span>out</span></div>
+        <div class="nav-right">
+          <button class="btn-ghost" onclick="toggleSettings()">
+            ⚙ API key
+          </button>
+          <a href="#api-docs" class="btn-accent">API docs ↓</a>
+        </div>
+      </nav>
+
+      <!-- SETTINGS PANEL -->
+      <div id="settings-panel">
+        <div class="settings-title">Your remove.bg API Key</div>
+        <div class="settings-row">
+          <span class="settings-label">API Key</span>
+          <input
+            class="settings-input"
+            id="api-key-input"
+            type="password"
+            placeholder="Paste your remove.bg API key..."
+          />
+          <button class="save-key-btn" id="save-key-btn" onclick="saveApiKey()">
+            Save
+          </button>
+          <button
+            class="save-key-btn"
+            onclick="clearApiKey()"
+            style="border-color: rgba(255, 77, 77, 0.3); color: var(--error)"
+          >
+            Clear
+          </button>
+        </div>
+        <div id="balance-wrap" style="margin-top: 14px; display: none">
+          <div class="balance-display" id="balance-display"></div>
+        </div>
+        <p style="font-size: 12px; color: var(--text-dim); margin-top: 14px">
+          No key? Get 50 free calls/month at
+          <a
+            href="https://www.remove.bg/api"
+            target="_blank"
+            style="color: var(--accent); text-decoration: none"
+            >remove.bg/api</a
+          >. Your key is stored only in your browser — never sent to our
+          servers.
+        </p>
+      </div>
+
+      <!-- HERO -->
+      <div class="hero">
+        <div class="hero-badge">AI-powered · Zero signup · No database</div>
+        <h1>Remove<br />backgrounds<br /><em>instantly.</em></h1>
+        <p class="hero-sub">
+          Drop any photo. Get a clean cutout in seconds — powered by remove.bg's
+          API.
+        </p>
+      </div>
+
+      <!-- UPLOAD STATE -->
+      <div id="upload-state">
+        <div
+          id="upload-zone"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+          onclick="triggerFileInput()"
+        >
+          <div class="upload-icon">
+            <svg
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+              />
+            </svg>
+          </div>
+
+          <div class="upload-title">Drop your image here</div>
+          <div class="upload-sub">or choose a file from your device</div>
+
+          <button
+            class="upload-cta"
+            onclick="
+              event.stopPropagation();
+              triggerFileInput();
+            "
+          >
+            <svg
+              width="14"
+              height="14"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+              />
+            </svg>
+            Upload Image
+          </button>
+
+          <div class="upload-formats">
+            JPG · PNG · WEBP · GIF · BMP · TIFF · up to 22 MB
+          </div>
+
+          <div class="url-row" onclick="event.stopPropagation()">
+            <input
+              class="url-input"
+              id="url-input"
+              type="url"
+              placeholder="Or paste an image URL..."
+            />
+            <button class="url-submit" onclick="submitUrl()">Submit</button>
+          </div>
+        </div>
+
+        <div class="samples">
+          <span class="samples-label">Try a sample →</span>
+          <div
+            class="sample-img"
+            onclick="
+              loadSample(
+                'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&q=80',
+              )
+            "
+            style="
+              background: #2a2a2a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+            "
+          >
+            👩
+          </div>
+          <div
+            class="sample-img"
+            onclick="
+              loadSample(
+                'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&q=80',
+              )
+            "
+            style="
+              background: #2a2a2a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+            "
+          >
+            ⌚
+          </div>
+          <div
+            class="sample-img"
+            onclick="
+              loadSample(
+                'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&q=80',
+              )
+            "
+            style="
+              background: #2a2a2a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+            "
+          >
+            🐶
+          </div>
+          <div
+            class="sample-img"
+            onclick="
+              loadSample(
+                'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?w=300&q=80',
+              )
+            "
+            style="
+              background: #2a2a2a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+            "
+          >
+            🚗
+          </div>
+        </div>
+      </div>
+
+      <!-- PROCESSING STATE -->
+      <div id="processing-view">
+        <img id="process-thumb" class="process-thumb" src="" alt="" />
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <div>
+            <div class="process-text">Removing background</div>
+            <div class="process-sub">Using remove.bg AI — usually under 3s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div id="error-view">
+        <div class="error-icon">
+          <svg
+            width="22"
+            height="22"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
+          </svg>
+        </div>
+        <div class="error-title" id="error-title">Something went wrong</div>
+        <div class="error-msg" id="error-msg">
+          We couldn't process your image. Please try again.
+        </div>
+        <div class="error-actions">
+          <button class="btn-retry" onclick="retryLast()">Try again</button>
+          <button class="btn-reset" onclick="resetAll()">
+            Upload different image
+          </button>
+        </div>
+      </div>
+
+      <!-- RESULT STATE -->
+      <div id="result-view">
+        <div class="result-grid">
+          <div class="result-card">
+            <div class="result-card-header">
+              <span class="result-label">Original</span>
+              <span class="result-dims" id="original-dims"></span>
+            </div>
+            <div class="result-img-wrap">
+              <img id="original-img" class="result-img" src="" alt="Original" />
+            </div>
+          </div>
+          <div class="result-card">
+            <div class="result-card-header">
+              <span class="result-label">Background removed ✦</span>
+              <span class="result-dims" id="result-dims"></span>
+            </div>
+            <div class="result-img-wrap transparent" id="result-img-wrap">
+              <img id="result-img" class="result-img" src="" alt="Result" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTIONS BAR -->
+        <div class="actions-bar">
+          <div class="action-group">
+            <span class="action-label">Format</span>
+            <select class="format-select" id="format-select">
+              <option value="png">PNG (transparent)</option>
+              <option value="jpg">JPG (white bg)</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+
+          <div class="action-group">
+            <span class="action-label">Background</span>
+            <div class="color-row">
+              <div
+                class="color-swatch transparent-swatch active"
+                onclick="setBg('transparent', this)"
+                title="Transparent"
+              ></div>
+              <div
+                class="color-swatch"
+                style="background: #ffffff"
+                onclick="setBg('#ffffff', this)"
+                title="White"
+              ></div>
+              <div
+                class="color-swatch"
+                style="
+                  background: #000000;
+                  border-color: rgba(255, 255, 255, 0.1);
+                "
+                onclick="setBg('#000000', this)"
+                title="Black"
+              ></div>
+              <div
+                class="color-swatch"
+                style="background: #1e40af"
+                onclick="setBg('#1e40af', this)"
+                title="Blue"
+              ></div>
+              <div
+                class="color-swatch"
+                style="background: #16a34a"
+                onclick="setBg('#16a34a', this)"
+                title="Green"
+              ></div>
+            </div>
+          </div>
+
+          <div class="actions-right">
+            <button
+              class="btn-icon"
+              onclick="copyToClipboard()"
+              title="Copy to clipboard"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"
+                />
+              </svg>
+            </button>
+            <button class="btn-reset" onclick="resetAll()">↑ New image</button>
+            <button class="btn-download" onclick="downloadResult()">
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
+              Download
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── API DOCS ── -->
+      <div class="api-section" id="api-docs">
+        <div class="api-header">
+          <div>
+            <div class="api-title">Use the<br /><span>API</span> yourself.</div>
+            <div class="api-subtitle">
+              Integrate background removal into your app with a single HTTP
+              call. No database, no backend — just a fetch() away.
+            </div>
+          </div>
+          <div>
+            <div class="api-key-chip">
+              <span
+                style="
+                  font-size: 12px;
+                  color: var(--text-dim);
+                  white-space: nowrap;
+                "
+                >api key</span
+              >
+              <input
+                id="docs-key-input"
+                type="text"
+                placeholder="your_remove_bg_api_key"
+                value=""
+              />
+              <button
+                class="save-key-btn"
+                id="docs-save-btn"
+                onclick="saveDocsKey()"
+              >
+                Save
+              </button>
+            </div>
+            <p
+              style="
+                font-size: 11px;
+                color: var(--text-dim);
+                text-align: right;
+                margin-top: 6px;
+              "
+            >
+              Updates code examples live
+            </p>
+          </div>
+        </div>
+
+        <!-- ENDPOINT -->
+        <div class="endpoint-card">
+          <div class="endpoint-bar">
+            <span class="method-badge method-post">POST</span>
+            <code class="endpoint-url"
+              >https://api.remove.bg/v1.0/removebg</code
+            >
+            <span class="endpoint-desc">Remove image background</span>
+          </div>
+          <table class="params-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="param-name">image_file</code></td>
+                <td><span class="param-type">binary</span></td>
+                <td><span class="param-required">one of</span></td>
+                <td class="param-desc">
+                  Source image file (multipart upload). Max 22 MB.
+                </td>
+              </tr>
+              <tr>
+                <td><code class="param-name">image_file_b64</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-required">one of</span></td>
+                <td class="param-desc">Base64-encoded source image.</td>
+              </tr>
+              <tr>
+                <td><code class="param-name">image_url</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-required">one of</span></td>
+                <td class="param-desc">Public URL of the source image.</td>
+              </tr>
+              <tr>
+                <td><code class="param-name">size</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-optional">optional</span></td>
+                <td class="param-desc">
+                  <code style="color: #7dd3fc; font-size: 11px">preview</code>
+                  (free, 0.25 MP) ·
+                  <code style="color: #7dd3fc; font-size: 11px">full</code> (1
+                  credit, 25 MP) ·
+                  <code style="color: #7dd3fc; font-size: 11px">50MP</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">auto</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code class="param-name">format</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-optional">optional</span></td>
+                <td class="param-desc">
+                  <code style="color: #7dd3fc; font-size: 11px">auto</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">png</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">jpg</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">webp</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">zip</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code class="param-name">bg_color</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-optional">optional</span></td>
+                <td class="param-desc">
+                  Add solid background. Hex color code e.g.
+                  <code style="color: #7dd3fc; font-size: 11px">ffffff</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code class="param-name">type</code></td>
+                <td><span class="param-type">string</span></td>
+                <td><span class="param-optional">optional</span></td>
+                <td class="param-desc">
+                  <code style="color: #7dd3fc; font-size: 11px">auto</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">person</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">product</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">car</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">animal</code> ·
+                  <code style="color: #7dd3fc; font-size: 11px">graphic</code>
+                </td>
+              </tr>
+              <tr>
+                <td><code class="param-name">crop</code></td>
+                <td><span class="param-type">boolean</span></td>
+                <td><span class="param-optional">optional</span></td>
+                <td class="param-desc">
+                  Crop transparent edges from the result image.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- GET ACCOUNT -->
+        <div class="endpoint-card" style="margin-bottom: 24px">
+          <div class="endpoint-bar">
+            <span class="method-badge method-get">GET</span>
+            <code class="endpoint-url">https://api.remove.bg/v1.0/account</code>
+            <span class="endpoint-desc">Fetch credit balance</span>
+          </div>
+          <div style="padding: 16px 20px">
+            <p style="font-size: 13px; color: var(--text-muted)">
+              Returns your current credit balance and number of remaining free
+              API calls. Set
+              <code style="color: #7dd3fc; font-size: 12px">X-API-Key</code>
+              header. Rate limit: read headers
+              <code style="color: #7dd3fc; font-size: 12px"
+                >X-RateLimit-Remaining</code
+              >
+              and
+              <code style="color: #7dd3fc; font-size: 12px">Retry-After</code>.
+            </p>
+          </div>
+          <!-- STATUS CODES -->
+          <div style="border-top: 1px solid var(--border)">
+            <div style="padding: 12px 20px 4px">
+              <span
+                style="
+                  font-size: 11px;
+                  color: var(--text-dim);
+                  letter-spacing: 0.8px;
+                  text-transform: uppercase;
+                "
+                >Response codes</span
+              >
+            </div>
+            <div class="status-grid">
+              <div class="status-item">
+                <span class="status-code s200">200</span
+                ><span class="status-text">Success — image returned</span>
+              </div>
+              <div class="status-item">
+                <span class="status-code s400">400</span
+                ><span class="status-text">Invalid params / unprocessable</span>
+              </div>
+              <div class="status-item">
+                <span class="status-code s402">402</span
+                ><span class="status-text">Insufficient credits</span>
+              </div>
+              <div class="status-item">
+                <span class="status-code s403">403</span
+                ><span class="status-text">Auth failed / missing API key</span>
+              </div>
+              <div class="status-item">
+                <span class="status-code s429">429</span
+                ><span class="status-text">Rate limit exceeded</span>
+              </div>
+              <div class="status-item">
+                <span class="status-code s5xx">5xx</span
+                ><span class="status-text">Server error — use backoff</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CODE SAMPLES -->
+        <div class="api-grid">
+          <!-- cURL -->
+          <div class="code-card">
+            <div class="code-card-header">
+              <div class="code-lang">
+                <div class="lang-dot" style="background: #f97316"></div>
+                cURL
+              </div>
+              <button class="copy-btn" onclick="copyCode('curl-code', this)">
+                Copy
+              </button>
+            </div>
+            <pre
+              id="curl-code"
+            ><span class="t-cmt"># Remove background from a local file</span>
+curl -X POST \
+  -H <span class="t-str">'X-API-Key: <span id="curl-key">YOUR_API_KEY</span>'</span> \
+  -F <span class="t-str">'image_file=@/path/to/photo.jpg'</span> \
+  -F <span class="t-str">'size=auto'</span> \
+  -f <span class="t-url">https://api.remove.bg/v1.0/removebg</span> \
+  -o <span class="t-str">result.png</span></pre>
+          </div>
+
+          <!-- JavaScript -->
+          <div class="code-card">
+            <div class="code-card-header">
+              <div class="code-lang">
+                <div class="lang-dot" style="background: #eab308"></div>
+                JavaScript
+              </div>
+              <button class="copy-btn" onclick="copyCode('js-code', this)">
+                Copy
+              </button>
+            </div>
+            <pre
+              id="js-code"
+            ><span class="t-kw">async function</span> <span class="t-fn">removeBackground</span>(imageFile) {
+  <span class="t-kw">const</span> form = <span class="t-kw">new</span> <span class="t-fn">FormData</span>();
+  form.<span class="t-fn">append</span>(<span class="t-str">'image_file'</span>, imageFile);
+  form.<span class="t-fn">append</span>(<span class="t-str">'size'</span>, <span class="t-str">'auto'</span>);
+
+  <span class="t-kw">const</span> res = <span class="t-kw">await</span> <span class="t-fn">fetch</span>(<span class="t-url">'https://api.remove.bg/v1.0/removebg'</span>, {
+    method: <span class="t-str">'POST'</span>,
+    headers: { <span class="t-str">'X-API-Key'</span>: <span class="t-str">'<span id="js-key">YOUR_API_KEY</span>'</span> },
+    body: form
+  });
+
+  <span class="t-kw">if</span> (!res.ok) <span class="t-kw">throw new</span> <span class="t-fn">Error</span>(<span class="t-kw">await</span> res.<span class="t-fn">text</span>());
+  <span class="t-kw">return</span> res.<span class="t-fn">blob</span>(); <span class="t-cmt">// PNG blob, ready to display</span>
+}</pre>
+          </div>
+
+          <!-- Python -->
+          <div class="code-card">
+            <div class="code-card-header">
+              <div class="code-lang">
+                <div class="lang-dot" style="background: #3b82f6"></div>
+                Python
+              </div>
+              <button class="copy-btn" onclick="copyCode('py-code', this)">
+                Copy
+              </button>
+            </div>
+            <pre id="py-code"><span class="t-kw">import</span> requests
+
+<span class="t-kw">def</span> <span class="t-fn">remove_background</span>(image_path):
+    <span class="t-kw">with</span> <span class="t-fn">open</span>(image_path, <span class="t-str">'rb'</span>) <span class="t-kw">as</span> f:
+        response = requests.<span class="t-fn">post</span>(
+            <span class="t-url">'https://api.remove.bg/v1.0/removebg'</span>,
+            files={<span class="t-str">'image_file'</span>: f},
+            data={<span class="t-str">'size'</span>: <span class="t-str">'auto'</span>},
+            headers={<span class="t-str">'X-API-Key'</span>: <span class="t-str">'<span id="py-key">YOUR_API_KEY</span>'</span>}
+        )
+    response.<span class="t-fn">raise_for_status</span>()
+    <span class="t-kw">return</span> response.content  <span class="t-cmt"># PNG bytes</span></pre>
+          </div>
+
+          <!-- Node.js with error handling -->
+          <div class="code-card">
+            <div class="code-card-header">
+              <div class="code-lang">
+                <div class="lang-dot" style="background: #4dff91"></div>
+                Node.js — with retry
+              </div>
+              <button class="copy-btn" onclick="copyCode('node-code', this)">
+                Copy
+              </button>
+            </div>
+            <pre
+              id="node-code"
+            ><span class="t-kw">const</span> { <span class="t-fn">FormData</span>, <span class="t-fn">fetch</span> } = require(<span class="t-str">'undici'</span>);
+
+<span class="t-kw">async function</span> <span class="t-fn">removeBackground</span>(filePath, retries = <span class="t-num">3</span>) {
+  <span class="t-kw">const</span> form = <span class="t-kw">new</span> <span class="t-fn">FormData</span>();
+  form.<span class="t-fn">set</span>(<span class="t-str">'image_file'</span>, <span class="t-kw">new</span> <span class="t-fn">Blob</span>([require(<span class="t-str">'fs'</span>).<span class="t-fn">readFileSync</span>(filePath)]));
+  form.<span class="t-fn">set</span>(<span class="t-str">'size'</span>, <span class="t-str">'auto'</span>);
+
+  <span class="t-kw">const</span> res = <span class="t-kw">await</span> <span class="t-fn">fetch</span>(<span class="t-url">'https://api.remove.bg/v1.0/removebg'</span>, {
+    method: <span class="t-str">'POST'</span>,
+    headers: { <span class="t-str">'X-API-Key'</span>: <span class="t-str">'<span id="node-key">YOUR_API_KEY</span>'</span> },
+    body: form
+  });
+
+  <span class="t-kw">if</span> (res.status === <span class="t-num">429</span> && retries > <span class="t-num">0</span>) {
+    <span class="t-kw">const</span> wait = +res.headers.<span class="t-fn">get</span>(<span class="t-str">'Retry-After'</span>) * <span class="t-num">1000</span>;
+    <span class="t-kw">await new</span> <span class="t-fn">Promise</span>(r => <span class="t-fn">setTimeout</span>(r, wait));
+    <span class="t-kw">return</span> <span class="t-fn">removeBackground</span>(filePath, retries - <span class="t-num">1</span>);
+  }
+
+  <span class="t-kw">if</span> (!res.ok) <span class="t-kw">throw new</span> <span class="t-fn">Error</span>(<span class="t-kw">await</span> res.<span class="t-fn">text</span>());
+  <span class="t-kw">return</span> Buffer.<span class="t-fn">from</span>(<span class="t-kw">await</span> res.<span class="t-fn">arrayBuffer</span>());
+}</pre>
+          </div>
+        </div>
+
+        <!-- React Hook -->
+        <div class="code-card" style="margin-bottom: 12px">
+          <div class="code-card-header">
+            <div class="code-lang">
+              <div class="lang-dot" style="background: #61dafb"></div>
+              React Hook — drop-in component
+            </div>
+            <button class="copy-btn" onclick="copyCode('react-code', this)">
+              Copy
+            </button>
+          </div>
+          <pre
+            id="react-code"
+          ><span class="t-kw">import</span> { useState, useCallback } <span class="t-kw">from</span> <span class="t-str">'react'</span>;
+
+<span class="t-kw">export function</span> <span class="t-fn">useBackgroundRemoval</span>(apiKey) {
+  <span class="t-kw">const</span> [state, setState] = <span class="t-fn">useState</span>({ loading: <span class="t-kw">false</span>, result: <span class="t-kw">null</span>, error: <span class="t-kw">null</span> });
+
+  <span class="t-kw">const</span> remove = <span class="t-fn">useCallback</span>(<span class="t-kw">async</span> (file) => {
+    setState({ loading: <span class="t-kw">true</span>, result: <span class="t-kw">null</span>, error: <span class="t-kw">null</span> });
+    <span class="t-kw">try</span> {
+      <span class="t-kw">const</span> form = <span class="t-kw">new</span> <span class="t-fn">FormData</span>();
+      form.<span class="t-fn">append</span>(<span class="t-str">'image_file'</span>, file);
+      form.<span class="t-fn">append</span>(<span class="t-str">'size'</span>, <span class="t-str">'auto'</span>);
+
+      <span class="t-kw">const</span> res = <span class="t-kw">await</span> <span class="t-fn">fetch</span>(<span class="t-url">'https://api.remove.bg/v1.0/removebg'</span>, {
+        method: <span class="t-str">'POST'</span>,
+        headers: { <span class="t-str">'X-API-Key'</span>: apiKey ?? <span class="t-str">'<span id="react-key">YOUR_API_KEY</span>'</span> },
+        body: form
+      });
+
+      <span class="t-kw">if</span> (!res.ok) {
+        <span class="t-kw">const</span> err = <span class="t-kw">await</span> res.<span class="t-fn">json</span>();
+        <span class="t-kw">throw new</span> <span class="t-fn">Error</span>(err.errors?.[<span class="t-num">0</span>]?.title ?? <span class="t-str">'Unknown error'</span>);
+      }
+
+      <span class="t-kw">const</span> blob = <span class="t-kw">await</span> res.<span class="t-fn">blob</span>();
+      <span class="t-kw">const</span> url = URL.<span class="t-fn">createObjectURL</span>(blob);
+      setState({ loading: <span class="t-kw">false</span>, result: { url, blob }, error: <span class="t-kw">null</span> });
+    } <span class="t-kw">catch</span> (e) {
+      setState({ loading: <span class="t-kw">false</span>, result: <span class="t-kw">null</span>, error: e.message });
+    }
+  }, [apiKey]);
+
+  <span class="t-kw">return</span> { ...state, remove };
+}
+
+<span class="t-cmt">// Usage:</span>
+<span class="t-cmt">// const { loading, result, error, remove } = useBackgroundRemoval(apiKey);</span>
+<span class="t-cmt">// &lt;input type="file" onChange={e => remove(e.target.files[0])} /&gt;</span>
+<span class="t-cmt">// {result && &lt;img src={result.url} /&gt;}</span></pre>
+        </div>
+      </div>
+      <!-- /api-docs -->
+
+      <!-- FOOTER -->
+      <footer>
+        <div class="footer-left">
+          <div class="footer-logo">cut<span>out</span></div>
+          <div class="footer-links">
+            <a href="#api-docs">API Docs</a>
+            <a href="https://www.remove.bg/api" target="_blank">remove.bg</a>
+            <a href="https://www.remove.bg/pricing" target="_blank">Pricing</a>
+          </div>
+        </div>
+        <div class="footer-right">
+          Powered by remove.bg API · No database · No server
+        </div>
+      </footer>
+    </div>
+    <!-- /app -->
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+    <input
+      type="file"
+      id="file-input"
+      accept="image/*"
+      onchange="handleFileInput(event)"
+    />
+
+    <script>
+      // ── STATE ──
+      let currentFile = null;
+      let currentBlob = null;
+      let lastAction = null; // for retry
+      let apiKey = localStorage.getItem("cutout_api_key") || "";
+      let currentBgColor = "transparent";
+
+      // ── INIT ──
+      window.addEventListener("paste", handleGlobalPaste);
+      document.addEventListener("DOMContentLoaded", () => {
+        if (apiKey) {
+          document.getElementById("api-key-input").value = apiKey;
+          document.getElementById("docs-key-input").value = apiKey;
+          updateCodeKeys(apiKey);
+        }
+      });
+
+      // ── SETTINGS ──
+      function toggleSettings() {
+        const p = document.getElementById("settings-panel");
+        p.classList.toggle("open");
+      }
+
+      function saveApiKey() {
+        const val = document.getElementById("api-key-input").value.trim();
+        if (!val) return showToast("Enter an API key first", "error-t");
+        apiKey = val;
+        localStorage.setItem("cutout_api_key", apiKey);
+        document.getElementById("docs-key-input").value = apiKey;
+        updateCodeKeys(apiKey);
+        const btn = document.getElementById("save-key-btn");
+        btn.textContent = "Saved ✓";
+        btn.classList.add("saved");
+        setTimeout(() => {
+          btn.textContent = "Save";
+          btn.classList.remove("saved");
+        }, 2000);
+        showToast("API key saved", "success");
+        fetchBalance();
+      }
+
+      function clearApiKey() {
+        apiKey = "";
+        localStorage.removeItem("cutout_api_key");
+        document.getElementById("api-key-input").value = "";
+        document.getElementById("docs-key-input").value = "";
+        updateCodeKeys("YOUR_API_KEY");
+        document.getElementById("balance-wrap").style.display = "none";
+        showToast("API key cleared");
+      }
+
+      function saveDocsKey() {
+        const val = document.getElementById("docs-key-input").value.trim();
+        if (!val) return;
+        apiKey = val;
+        localStorage.setItem("cutout_api_key", apiKey);
+        document.getElementById("api-key-input").value = apiKey;
+        updateCodeKeys(apiKey);
+        const btn = document.getElementById("docs-save-btn");
+        btn.textContent = "Saved ✓";
+        btn.classList.add("saved");
+        setTimeout(() => {
+          btn.textContent = "Save";
+          btn.classList.remove("saved");
+        }, 2000);
+        showToast("API key saved — code examples updated", "success");
+      }
+
+      function updateCodeKeys(key) {
+        ["curl-key", "js-key", "py-key", "node-key", "react-key"].forEach(
+          (id) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = key || "YOUR_API_KEY";
+          },
+        );
+      }
+
+      async function fetchBalance() {
+        if (!apiKey) return;
+        try {
+          const res = await fetch("https://api.remove.bg/v1.0/account", {
+            headers: { "X-API-Key": apiKey },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const attrs = data?.data?.attributes;
+          const wrap = document.getElementById("balance-wrap");
+          const disp = document.getElementById("balance-display");
+          disp.innerHTML = `
+        <div class="balance-item">Total credits <span class="balance-val">${attrs.credits.total}</span></div>
+        <div class="balance-item">Subscription <span class="balance-val">${attrs.credits.subscription}</span></div>
+        <div class="balance-item">Free calls left <span class="balance-val">${attrs.api.free_calls}</span></div>
+      `;
+          wrap.style.display = "block";
+        } catch (e) {}
+      }
+
+      // ── DRAG & DROP ──
+      function handleDragOver(e) {
+        e.preventDefault();
+        document.getElementById("upload-zone").classList.add("drag-over");
+      }
+
+      function handleDragLeave(e) {
+        document.getElementById("upload-zone").classList.remove("drag-over");
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        document.getElementById("upload-zone").classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file) processFile(file);
+      }
+
+      function triggerFileInput() {
+        document.getElementById("file-input").click();
+      }
+
+      function handleFileInput(e) {
+        const file = e.target.files[0];
+        if (file) processFile(file);
+      }
+
+      function handleGlobalPaste(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type.startsWith("image/")) {
+            processFile(item.getAsFile());
+            return;
+          }
+        }
+      }
+
+      function submitUrl() {
+        const url = document.getElementById("url-input").value.trim();
+        if (!url) return showToast("Paste an image URL first", "error-t");
+        processUrl(url);
+      }
+
+      function loadSample(url) {
+        processUrl(url);
+      }
+
+      // ── VALIDATION ──
+      function validateFile(file) {
+        const allowed = [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "image/bmp",
+          "image/tiff",
+        ];
+        if (!allowed.includes(file.type)) {
+          showError(
+            "Unsupported file type",
+            `That file type isn't supported. Please use JPG, PNG, WEBP, GIF, BMP, or TIFF.`,
+          );
+          return false;
+        }
+        if (file.size > 22 * 1024 * 1024) {
+          showError(
+            "File too large",
+            `Your file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The maximum is 22 MB.`,
+          );
+          return false;
+        }
+        return true;
+      }
+
+      // ── PROCESS FILE ──
+      function processFile(file) {
+        if (!validateFile(file)) return;
+        currentFile = file;
+        lastAction = { type: "file", file };
+        const thumb = URL.createObjectURL(file);
+        showProcessing(thumb);
+        callApi({ imageFile: file });
+      }
+
+      function processUrl(url) {
+        lastAction = { type: "url", url };
+        showProcessing(url);
+        callApi({ imageUrl: url });
+      }
+
+      // ── API CALL ──
+      async function callApi({ imageFile, imageUrl }, retries = 2) {
+        if (!apiKey) {
+          showError(
+            "API key required",
+            'Add your remove.bg API key to process images. You get 50 free calls per month. Click "API key" in the top right.',
+          );
+          return;
+        }
+
+        try {
+          const form = new FormData();
+          if (imageFile) {
+            form.append("image_file", imageFile);
+          } else {
+            form.append("image_url", imageUrl);
+          }
+          form.append("size", "auto");
+          form.append("format", "png");
+
+          const res = await fetch("https://api.remove.bg/v1.0/removebg", {
+            method: "POST",
+            headers: { "X-API-Key": apiKey },
+            body: form,
+          });
+
+          if (res.status === 429) {
+            const retryAfter = parseInt(
+              res.headers.get("Retry-After") || "10",
+              10,
+            );
+            if (retries > 0) {
+              showToast(`Rate limited — retrying in ${retryAfter}s…`);
+              await delay(retryAfter * 1000);
+              return callApi({ imageFile, imageUrl }, retries - 1);
+            }
+            showError(
+              "Rate limit hit",
+              `Too many requests. Please wait ${retryAfter} seconds and try again.`,
+            );
+            return;
+          }
+
+          if (res.status === 402) {
+            showError(
+              "Out of credits",
+              "Your remove.bg credits are used up. Add your own API key or upgrade your plan at remove.bg/pricing.",
+            );
+            return;
+          }
+
+          if (res.status === 403) {
+            showError(
+              "Invalid API key",
+              "Your API key was rejected. Double-check it in the settings panel at the top.",
+            );
+            return;
+          }
+
+          if (!res.ok) {
+            let msg = "Could not process this image.";
+            try {
+              const data = await res.json();
+              msg = data.errors?.[0]?.title || msg;
+            } catch (_) {}
+            showError("Processing failed", msg);
+            return;
+          }
+
+          const width = res.headers.get("X-Width") || "—";
+          const height = res.headers.get("X-Height") || "—";
+          const blob = await res.blob();
+
+          showResult({
+            originalSrc: imageFile ? URL.createObjectURL(imageFile) : imageUrl,
+            resultBlob: blob,
+            width,
+            height,
+          });
+        } catch (e) {
+          if (retries > 0) {
+            await delay(1500 * (3 - retries));
+            return callApi({ imageFile, imageUrl }, retries - 1);
+          }
+          if (e.name === "TypeError" && e.message.includes("fetch")) {
+            showError(
+              "Network error",
+              "Could not reach the remove.bg API. Check your internet connection and try again.",
+            );
+          } else {
+            showError(
+              "Unexpected error",
+              e.message || "Something went wrong. Please try again.",
+            );
+          }
+        }
+      }
+
+      function delay(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      function retryLast() {
+        if (!lastAction) return resetAll();
+        if (lastAction.type === "file") processFile(lastAction.file);
+        else processUrl(lastAction.url);
+      }
+
+      // ── STATE TRANSITIONS ──
+      function showProcessing(thumbSrc) {
+        hide("upload-state");
+        hide("result-view");
+        hide("error-view");
+        document.getElementById("process-thumb").src = thumbSrc;
+        show("processing-view");
+      }
+
+      function showResult({ originalSrc, resultBlob, width, height }) {
+        currentBlob = resultBlob;
+        hide("processing-view");
+        hide("error-view");
+
+        document.getElementById("original-img").src = originalSrc;
+        document.getElementById("result-img").src =
+          URL.createObjectURL(resultBlob);
+        document.getElementById("result-dims").textContent =
+          `${width} × ${height}px`;
+
+        show("result-view");
+
+        // reset bg
+        currentBgColor = "transparent";
+        document
+          .querySelectorAll(".color-swatch")
+          .forEach((s, i) => s.classList.toggle("active", i === 0));
+        document.getElementById("result-img-wrap").style.background = "";
+        document.getElementById("result-img-wrap").classList.add("transparent");
+      }
+
+      function showError(title, msg) {
+        hide("processing-view");
+        hide("result-view");
+        document.getElementById("error-title").textContent = title;
+        document.getElementById("error-msg").textContent = msg;
+        show("error-view");
+      }
+
+      function resetAll() {
+        currentFile = null;
+        currentBlob = null;
+        hide("processing-view");
+        hide("result-view");
+        hide("error-view");
+        document.getElementById("url-input").value = "";
+        document.getElementById("file-input").value = "";
+        show("upload-state");
+      }
+
+      function show(id) {
+        document.getElementById(id).style.display = "";
+      }
+      function hide(id) {
+        document.getElementById(id).style.display = "none";
+      }
+
+      // ── DOWNLOAD ──
+      function downloadResult() {
+        if (!currentBlob) return;
+        const format = document.getElementById("format-select").value;
+
+        if (format === "png" && currentBgColor === "transparent") {
+          triggerDownload(currentBlob, `cutout.png`);
+          return;
+        }
+
+        // Convert via canvas
+        const img = new Image();
+        const url = URL.createObjectURL(currentBlob);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (currentBgColor !== "transparent") {
+            ctx.fillStyle = currentBgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.drawImage(img, 0, 0);
+          const mime =
+            format === "jpg"
+              ? "image/jpeg"
+              : format === "webp"
+                ? "image/webp"
+                : "image/png";
+          const ext =
+            format === "jpg" ? "jpg" : format === "webp" ? "webp" : "png";
+          canvas.toBlob(
+            (blob) => triggerDownload(blob, `cutout.${ext}`),
+            mime,
+            0.95,
+          );
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      }
+
+      function triggerDownload(blob, filename) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        showToast("Download started", "success");
+      }
+
+      // ── COPY TO CLIPBOARD ──
+      async function copyToClipboard() {
+        if (!currentBlob) return;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": currentBlob }),
+          ]);
+          showToast("Copied to clipboard", "success");
+        } catch (e) {
+          showToast("Copy not supported in this browser", "error-t");
+        }
+      }
+
+      // ── BACKGROUND COLOR ──
+      function setBg(color, el) {
+        currentBgColor = color;
+        document
+          .querySelectorAll(".color-swatch")
+          .forEach((s) => s.classList.remove("active"));
+        el.classList.add("active");
+        const wrap = document.getElementById("result-img-wrap");
+        if (color === "transparent") {
+          wrap.style.background = "";
+          wrap.classList.add("transparent");
+        } else {
+          wrap.classList.remove("transparent");
+          wrap.style.background = color;
+        }
+      }
+
+      // ── COPY CODE ──
+      function copyCode(id, btn) {
+        const el = document.getElementById(id);
+        const text = el.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = "Copied!";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            btn.textContent = "Copy";
+            btn.classList.remove("copied");
+          }, 2000);
+        });
+      }
+
+      // ── TOAST ──
+      function showToast(msg, type = "") {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = `show ${type}`;
+        setTimeout(() => {
+          t.className = type;
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>
